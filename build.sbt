@@ -1,7 +1,7 @@
 import de.heikoseeberger.sbtheader.license.Apache2_0
 import sbt._
 
-organization := "me.davidgreco"
+organization := "me.davidgreco.spark"
 
 name := "spark-runner"
 
