@@ -17,20 +17,18 @@
 package me.davidgreco.examples.sparkrunner
 
 import java.io.File
-import java.net.InetAddress
 
 import org.apache.spark.runner._
+import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
+
+import scala.language.postfixOps
 
 object Main extends App {
 
   val yarn = false
 
-  val initialExecutors = 4
-
-  val minExecutors = 4
-
-  val conf: SparkConf = new SparkConf().setAppName("spark-cdh5-template-yarn")
+  val conf: SparkConf = new SparkConf().setAppName("spark-runner-yarn")
 
   val master: Option[String] = conf.getOption("spark.master")
 
@@ -67,16 +65,20 @@ object Main extends App {
 
   implicit val sparkContext: SparkContext = new SparkContext(conf)
 
-  val nodes = getNodes
-
-  val bnodes = sparkContext.broadcast(nodes)
+  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
 
   val func = () => {
-    val address: InetAddress = InetAddress.getLocalHost()
-    (address.getHostAddress, address.getHostName)
+    import sys.process._
+    "ls /tmp" lineStream
   }
 
-  val _ = executeOnNodes(func).foreach(println(_))
+  streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(println(_)))
+
+  streamingContext.start()
+
+  streamingContext.awaitTermination()
+
+  streamingContext.stop()
 
   sparkContext.stop()
 

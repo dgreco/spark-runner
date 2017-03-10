@@ -117,7 +117,7 @@ libraryDependencies ++= Seq(
 //We set all provided dependencies to none, so that they are included in the classpath of root module
 lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file("."))).settings(
   // we set all provided dependencies to none, so that they are included in the classpath of mainRunner
-  libraryDependencies := (libraryDependencies in RootProject(file("."))).value.map{
+  libraryDependencies := (libraryDependencies in RootProject(file("."))).value.map {
     module =>
       if (module.configurations.equals(Some("provided"))) {
         module.copy(configurations = None)
@@ -146,6 +146,11 @@ lazy val root = (project in file(".")).
       "properties" -> Apache2_0("2017", "David Greco", "#")
     )
   ).
+  settings(
+    mappings in(Compile, packageBin) ~= {
+      _.filter(!_._1.getName.endsWith("log4j.properties"))
+    }
+  ).
   enablePlugins(AutomateHeaderPlugin).
   enablePlugins(JavaAppPackaging).
   disablePlugins(AssemblyPlugin)
@@ -155,6 +160,7 @@ lazy val projectAssembly = (project in file("assembly")).
     assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
     assemblyMergeStrategy in assembly := {
       case "org/apache/spark/unused/UnusedStubClass.class" => MergeStrategy.last
+      case PathList("log4j.properties") => MergeStrategy.discard
       case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)

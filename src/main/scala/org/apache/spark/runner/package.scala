@@ -22,6 +22,9 @@ import java.net.{ InetAddress, URL, URLClassLoader }
 import org.apache.spark.rdd.RDD
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.dstream.DStream
+import org.apache.spark.streaming.utils._
 
 import scala.reflect.ClassTag
 
@@ -30,7 +33,7 @@ package object runner {
   def addPath(dir: String): Unit = {
     val method = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL])
     method.setAccessible(true)
-    val dummy = method.invoke(ClassLoader.getSystemClassLoader, new File(dir).toURI.toURL)
+    val _ = method.invoke(ClassLoader.getSystemClassLoader, new File(dir).toURI.toURL)
   }
 
   //given a class it returns the jar (in the classpath) containing that class
@@ -97,9 +100,20 @@ package object runner {
     }, preservesPartitioning = true).collect()
   }
 
+  def streamingExecuteOnNodes[T](func: () => Stream[T])(implicit streamingContext: StreamingContext, ev: ClassTag[T]): DStream[(String, T)] = {
+
+    checkPrerequisites(streamingContext)
+
+    val numNodes = numOfSparkExecutors(streamingContext.sparkContext)
+
+    val dstreams = (1 to numNodes).map(_ => streamingContext.receiverStream[T](new OutputReceiver(func, getBatchDuration(streamingContext))))
+
+    streamingContext.union(dstreams).transform(_.map(item => (InetAddress.getLocalHost.getHostName, item))) //.repartition(numNodes))
+  }
+
   object GetAddress extends (() => (String, String)) with Serializable {
     override def apply: (String, String) = {
-      val address: InetAddress = InetAddress.getLocalHost()
+      val address: InetAddress = InetAddress.getLocalHost
       (address.getHostAddress, address.getHostName)
     }
   }
