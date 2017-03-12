@@ -18,15 +18,25 @@ package org.apache.spark
 
 import java.io.File
 import java.net.{ InetAddress, URL, URLClassLoader }
+import java.util.Properties
 
+import kafka.admin.AdminUtils
+import kafka.serializer.StringDecoder
+import kafka.utils.ZkUtils
+import org.I0Itec.zkclient.ZkClient
+import org.I0Itec.zkclient.serialize.ZkSerializer
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.rdd.RDD
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer, _ }
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.utils._
+import org.apache.spark.streaming.kafka.KafkaUtils
 
 import scala.reflect.ClassTag
+import scala.util.Random
 
 package object runner {
   //Simple function for adding a directory to the system classpath
@@ -76,12 +86,12 @@ package object runner {
     }, preservesPartitioning = true).collect().distinct
   }
 
-  def executeOnNodes[T](func: () => T)(implicit sparkContext: SparkContext, ev: ClassTag[T]): Array[T] = {
+  def executeOnNodes[T](func: Int => T)(implicit sparkContext: SparkContext, ev: ClassTag[T]): Array[T] = {
     val numNodes = numOfSparkExecutors(sparkContext)
 
     val rdd: RDD[Int] = sparkContext.parallelize[Int](1 to numNodes, numNodes)
 
-    rdd.mapPartitions[T](_ => new Iterator[T] {
+    rdd.mapPartitionsWithIndex[T]((id, _) => new Iterator[T] {
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var firstTime = true
 
@@ -95,24 +105,66 @@ package object runner {
 
       @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
       override def next(): T = {
-        func()
+        func(id)
       }
     }, preservesPartitioning = true).collect()
   }
 
-  def streamingExecuteOnNodes[T](func: () => Stream[T])(implicit streamingContext: StreamingContext, ev: ClassTag[T]): DStream[(String, T)] = {
+  @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf", "org.wartremover.warts.ToString", "org.wartremover.warts.While"))
+  def streamingExecuteOnNodes[T](func: () => Stream[T])(implicit streamingContext: StreamingContext, ev: ClassTag[T]): DStream[(String, String)] = {
 
-    checkPrerequisites(streamingContext)
+    val TICK_TIME = 1000
+    val TOPIC_LENGTH = 10
+    val TOPIC = Random.alphanumeric.take(TOPIC_LENGTH).mkString
+    val CLIENT_ID_LENGTH = 10
+    val CLIENT_ID = Random.alphanumeric.take(TOPIC_LENGTH).mkString
+    val TIMEOUT = 1000
+    val SLEEP: Long = 1000
 
-    val numNodes = numOfSparkExecutors(streamingContext.sparkContext)
+    val zkPort = getAvailablePort
+    implicit val sparkContext: SparkContext = streamingContext.sparkContext
+    val nodes = getNodes
+    val numNodes = nodes.length
+    val embeddedZookeeper = new EmbeddedZookeeper(zkPort, TICK_TIME)
+    embeddedZookeeper.startup()
+    val zkConnection = embeddedZookeeper.getConnection
+    val brokers = executeOnNodes(id => {
+      val kafkaPort = getAvailablePort
+      val kafkaServer = new EmbeddedKafka(id, zkConnection, kafkaPort)
+      kafkaServer.startup()
+      kafkaServer.getConnection
+    }).mkString(",")
 
-    val dstreams = (1 to numNodes).map(_ => streamingContext.receiverStream[T](new OutputReceiver(func, getBatchDuration(streamingContext))))
+    val zkClient = new ZkClient(zkConnection, Integer.MAX_VALUE, TIMEOUT, new ZkSerializer {
+      def serialize(data: Object): Array[Byte] = data.asInstanceOf[String].getBytes("UTF-8")
 
-    streamingContext.union(dstreams).transform(_.map(item => (InetAddress.getLocalHost.getHostName, item))) //.repartition(numNodes))
+      def deserialize(bytes: Array[Byte]): Object = new String(bytes, "UTF-8")
+    })
+    val zkUtils = ZkUtils.apply(zkClient, isZkSecurityEnabled = false)
+    AdminUtils.createTopic(zkUtils, TOPIC, numNodes, 1, new Properties())
+    Thread.sleep(SLEEP)
+    while (!AdminUtils.topicExists(zkUtils, TOPIC))
+      Thread.sleep(SLEEP)
+    val kafkaParams = Map[String, String](
+      "metadata.broker.list" -> brokers
+    )
+    val topics = Set(TOPIC)
+    val stream = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
+    val _2 = executeOnNodes(id => {
+      val tryProducer = makeProducer[String, String, StringSerializer, StringSerializer](CLIENT_ID, brokers)
+      new Thread(new Runnable {
+        val host = InetAddress.getLocalHost.getHostAddress
+
+        override def run(): Unit = func().iterator.foreach(item => {
+          tryProducer.foreach(_.send(new ProducerRecord(TOPIC, id, host, item.toString)))
+        })
+      }).start()
+    })
+    stream
   }
 
-  object GetAddress extends (() => (String, String)) with Serializable {
-    override def apply: (String, String) = {
+  object GetAddress extends (Int => (String, String)) with Serializable {
+    override def apply(id: Int): (String, String) = {
       val address: InetAddress = InetAddress.getLocalHost
       (address.getHostAddress, address.getHostName)
     }

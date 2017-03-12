@@ -47,7 +47,7 @@ wartremoverErrors ++= Seq(
   Wart.LeakingSealed,
   Wart.ListOps,
   Wart.MutableDataStructures,
-  //Wart.NoNeedForMonad,
+  Wart.NoNeedForMonad,
   Wart.NonUnitStatements,
   Wart.Nothing,
   Wart.Null,
@@ -64,7 +64,7 @@ wartremoverErrors ++= Seq(
   Wart.While
 )
 
-val sparkVersion = "2.0.0.cloudera1"
+val sparkVersion = "2.0.0.cloudera2"
 
 val hadoopVersion = "2.6.0-cdh5.9.0"
 
@@ -86,6 +86,7 @@ val sparkExcludes =
     exclude("org.apache.hadoop", "hadoop-yarn-server-web-proxy")
 
 val assemblyDependencies = (scope: String) => Seq(
+  sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion % scope)
 )
 
 val hadoopClientExcludes =

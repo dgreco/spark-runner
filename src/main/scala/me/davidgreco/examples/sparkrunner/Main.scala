@@ -17,9 +17,10 @@
 package me.davidgreco.examples.sparkrunner
 
 import java.io.File
+import java.net.InetAddress
 
 import org.apache.spark.runner._
-import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
+import org.apache.spark.streaming.{ Seconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
 
 import scala.language.postfixOps
@@ -59,17 +60,17 @@ object Main extends App {
     } else {
       val _ = conf.
         setAppName("spark-runner-local").
-        setMaster("local[16]")
+        setMaster("local[4]")
     }
   }
 
   implicit val sparkContext: SparkContext = new SparkContext(conf)
 
-  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
+  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Seconds(1))
 
   val func = () => {
-    import sys.process._
-    "ls /tmp" lineStream
+    val host = InetAddress.getLocalHost.getHostAddress
+    Stream.continually(host)
   }
 
   streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(println(_)))
