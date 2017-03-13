@@ -17,9 +17,12 @@
 package org.apache.spark.runner
 
 import java.net.{ InetAddress, Socket }
+import java.util.concurrent.CountDownLatch
 
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, getAvailablePort }
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper }
+import org.apache.spark.runner.utils._
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
 import org.scalatest.{ BeforeAndAfterAll, MustMatchers, WordSpec }
@@ -38,38 +41,28 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
     ()
   }
 
-  "Spark" must {
-    "run a function correctly" in {
-      implicit val sparkContext: SparkContext = sparkSession.sparkContext
-
-      val nodes = getNodes
-
-      executeOnNodes[(String, String)](GetAddress).map(_._1).toSet must be(getNodes.toSet)
-    }
-  }
-
   "The EmbeddedZookeeper" must {
     "be created and run correctly" in {
       val const = 1000
       val port = getAvailablePort
       val zk = new EmbeddedZookeeper(port, const)
-      zk.startup()
+      zk.startup().isSuccess must be(true)
       import java.util.concurrent.CountDownLatch
       val connSignal = new CountDownLatch(1)
       val zkCli = new ZooKeeper(zk.getConnection, const, new Watcher {
         override def process(event: WatchedEvent): Unit = {
           import org.apache.zookeeper.Watcher.Event.KeeperState
-          if (event.getState eq KeeperState.SyncConnected) connSignal.countDown
+          if (event.getState eq KeeperState.SyncConnected) connSignal.countDown()
         }
       })
-      connSignal.await
+      connSignal.await()
       import org.apache.zookeeper.CreateMode
       import org.apache.zookeeper.ZooDefs.Ids
       val _ = zkCli.create("/test", Array[Byte](), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
       zkCli.exists("/test", false).getAversion must be(0)
       zkCli.delete("/test", 0)
       zkCli.close()
-      zk.shutdown()
+      zk.shutdown().isFailure must be(false)
     }
   }
 
@@ -78,20 +71,59 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
       val const = 1000
       val zkPort = getAvailablePort
       val zk = new EmbeddedZookeeper(zkPort, const)
-      zk.startup()
+      zk.startup().isSuccess must be(true)
       val kafkaPort = getAvailablePort
       val kafkaServer = new EmbeddedKafka(0, zk.getConnection, kafkaPort)
-      kafkaServer.startup()
+      kafkaServer.startup().isSuccess must be(true)
       var connected = true
       connected = try {
         new Socket(InetAddress.getLocalHost.getHostName, kafkaPort)
         true
       } catch {
-        case e: Exception => false
+        case _: Exception => false
       }
       connected must be(true)
-      kafkaServer.shutdown()
-      zk.shutdown()
+      kafkaServer.shutdown().isFailure must be(false)
+      zk.shutdown().isFailure must be(false)
+    }
+  }
+
+  "Spark" must {
+    "run a function correctly" in {
+      implicit val sparkContext: SparkContext = sparkSession.sparkContext
+
+      val nodes = getNodes
+
+      executeOnNodes(GetAddress).map(_._1).toSet must be(nodes.toSet)
+    }
+  }
+
+  "Spark" must {
+    "run a function and streaming the result correctly" in {
+      val batchIntervalInMillis = 100L
+
+      val numItems = 100
+
+      implicit val sparkContext: SparkContext = sparkSession.sparkContext
+
+      implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(batchIntervalInMillis))
+
+      val latch = new CountDownLatch(numItems)
+
+      val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
+        for (i <- 1 to numItems) {
+          ec.send(i.toString)
+        }
+      }
+
+      streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(_ => latch.countDown()))
+
+      streamingContext.start()
+
+      latch.await()
+
+      streamingContext.stop(false)
+
     }
   }
 

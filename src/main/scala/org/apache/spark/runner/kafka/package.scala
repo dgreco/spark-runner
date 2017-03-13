@@ -16,55 +16,17 @@
 
 package org.apache.spark.runner
 
-import java.io.{ File, FileNotFoundException, IOException }
-import java.net.ServerSocket
 import java.util.Properties
 
 import org.apache.kafka.clients.producer.{ KafkaProducer, ProducerConfig }
 import org.apache.kafka.common.serialization.{ Serializer => KafkaSerializer, StringSerializer => KafkaStringSerializer }
 
 import scala.reflect.ClassTag
-import scala.util.{ Random, Try }
+import scala.util.Try
 
 package object kafka {
 
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def getAvailablePort: Int = {
-    try {
-      val socket = new ServerSocket(0)
-      try {
-        socket.getLocalPort
-      } finally {
-        socket.close()
-      }
-    } catch {
-      case e: IOException =>
-        throw new IllegalStateException(s"Cannot find available port: ${e.getMessage}", e)
-    }
-  }
-
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def constructTempDir(dirPrefix: String): File = {
-    val rndinterval = 10000000
-    val file = new File(System.getProperty("java.io.tmpdir"), dirPrefix + Random.nextInt(rndinterval))
-    if (!file.mkdirs)
-      throw new RuntimeException("could not create temp directory: " + file.getAbsolutePath)
-    file.deleteOnExit()
-    file
-  }
-
-  @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.Var"))
-  def deleteFile(path: File): Boolean = {
-    if (!path.exists()) {
-      throw new FileNotFoundException(path.getAbsolutePath)
-    }
-    var ret = true
-    if (path.isDirectory)
-      path.listFiles().foreach(f => ret = ret && deleteFile(f))
-    ret
-  }
-
-  private def producerParams[K <: KafkaSerializer[_], V <: KafkaSerializer[_]](clientId: String, brokers: String)(implicit K: ClassTag[K], V: ClassTag[V]) =
+  private def producerProperties[K <: KafkaSerializer[_], V <: KafkaSerializer[_]](clientId: String, brokers: String)(implicit K: ClassTag[K], V: ClassTag[V]) =
     Map[String, String](
       ProducerConfig.CLIENT_ID_CONFIG -> clientId,
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> brokers,
@@ -72,12 +34,10 @@ package object kafka {
       ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG -> K.runtimeClass.getName,
       ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG -> V.runtimeClass.getName
     )
-
-  private def producerProperties[K <: KafkaSerializer[_], V <: KafkaSerializer[_]](clientId: String, brokers: String)(implicit K: ClassTag[K], V: ClassTag[V]) =
-    producerParams[K, V](clientId, brokers).foldLeft(new Properties()) { (props, pair) =>
-      val _ = props.setProperty(pair._1, pair._2)
-      props
-    }
+      .foldLeft(new Properties()) { (props, pair) =>
+        val _ = props.setProperty(pair._1, pair._2)
+        props
+      }
 
   def makeProducer[A, B, AA <: KafkaSerializer[A], BB <: KafkaSerializer[B]](
     clientId: String,

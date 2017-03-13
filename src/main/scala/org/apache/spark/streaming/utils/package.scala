@@ -20,8 +20,4 @@ package object utils {
 
   def getBatchDuration(streamingContext: StreamingContext): Duration = streamingContext.graph.batchDuration
 
-  def checkPrerequisites(streamingContext: StreamingContext): Unit = {
-    assert(!streamingContext.sparkContext.getConf.get("spark.dynamicAllocation.enabled").toBoolean)
-    assert(streamingContext.sparkContext.getConf.get("spark.executor.cores").toInt >= 2)
-  }
 }

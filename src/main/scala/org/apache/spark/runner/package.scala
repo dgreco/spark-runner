@@ -25,10 +25,10 @@ import kafka.serializer.StringDecoder
 import kafka.utils.ZkUtils
 import org.I0Itec.zkclient.ZkClient
 import org.I0Itec.zkclient.serialize.ZkSerializer
-import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.rdd.RDD
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer, _ }
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer }
+import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
 import org.apache.spark.streaming.StreamingContext
@@ -39,6 +39,11 @@ import scala.reflect.ClassTag
 import scala.util.Random
 
 package object runner {
+
+  val TICK_TIME = 1000
+  val TIMEOUT = 1000
+  val SLEEP: Long = 1000
+
   //Simple function for adding a directory to the system classpath
   def addPath(dir: String): Unit = {
     val method = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL])
@@ -86,7 +91,7 @@ package object runner {
     }, preservesPartitioning = true).collect().distinct
   }
 
-  def executeOnNodes[T](func: Int => T)(implicit sparkContext: SparkContext, ev: ClassTag[T]): Array[T] = {
+  def executeOnNodes[T](func: ExecutionContext => T)(implicit sparkContext: SparkContext, ev: ClassTag[T]): Array[T] = {
     val numNodes = numOfSparkExecutors(sparkContext)
 
     val rdd: RDD[Int] = sparkContext.parallelize[Int](1 to numNodes, numNodes)
@@ -105,33 +110,29 @@ package object runner {
 
       @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
       override def next(): T = {
-        func(id)
+        func(SimpleExecutionContext(id, InetAddress.getLocalHost.getHostAddress))
       }
     }, preservesPartitioning = true).collect()
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf", "org.wartremover.warts.ToString", "org.wartremover.warts.While"))
-  def streamingExecuteOnNodes[T](func: () => Stream[T])(implicit streamingContext: StreamingContext, ev: ClassTag[T]): DStream[(String, String)] = {
-
-    val TICK_TIME = 1000
+  def streamingExecuteOnNodes(func: StreamingExecutionContext => Unit)(implicit streamingContext: StreamingContext): DStream[(String, String)] = {
     val TOPIC_LENGTH = 10
     val TOPIC = Random.alphanumeric.take(TOPIC_LENGTH).mkString
     val CLIENT_ID_LENGTH = 10
     val CLIENT_ID = Random.alphanumeric.take(TOPIC_LENGTH).mkString
-    val TIMEOUT = 1000
-    val SLEEP: Long = 1000
 
     val zkPort = getAvailablePort
     implicit val sparkContext: SparkContext = streamingContext.sparkContext
     val nodes = getNodes
     val numNodes = nodes.length
     val embeddedZookeeper = new EmbeddedZookeeper(zkPort, TICK_TIME)
-    embeddedZookeeper.startup()
+    val _ = embeddedZookeeper.startup()
     val zkConnection = embeddedZookeeper.getConnection
-    val brokers = executeOnNodes(id => {
+    val brokers = executeOnNodes(ec => {
       val kafkaPort = getAvailablePort
-      val kafkaServer = new EmbeddedKafka(id, zkConnection, kafkaPort)
-      kafkaServer.startup()
+      val kafkaServer = new EmbeddedKafka(ec.id, zkConnection, kafkaPort)
+      val _ = kafkaServer.startup()
       kafkaServer.getConnection
     }).mkString(",")
 
@@ -150,22 +151,22 @@ package object runner {
     )
     val topics = Set(TOPIC)
     val stream = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
-    val _2 = executeOnNodes(id => {
+    val _2 = executeOnNodes(ec => {
       val tryProducer = makeProducer[String, String, StringSerializer, StringSerializer](CLIENT_ID, brokers)
       new Thread(new Runnable {
-        val host = InetAddress.getLocalHost.getHostAddress
-
-        override def run(): Unit = func().iterator.foreach(item => {
-          tryProducer.foreach(_.send(new ProducerRecord(TOPIC, id, host, item.toString)))
+        override def run(): Unit = tryProducer.foreach(producer => {
+          func(StreamingExecutionContext(ec.id, ec.address, TOPIC, producer))
         })
       }).start()
     })
     stream
   }
 
-  object GetAddress extends (Int => (String, String)) with Serializable {
-    override def apply(id: Int): (String, String) = {
+  @SuppressWarnings(Array("org.wartremover.warts.Equals"))
+  object GetAddress extends (ExecutionContext => (String, String)) with Serializable {
+    override def apply(ec: ExecutionContext): (String, String) = {
       val address: InetAddress = InetAddress.getLocalHost
+      assert(ec.address == address.getHostAddress)
       (address.getHostAddress, address.getHostName)
     }
   }

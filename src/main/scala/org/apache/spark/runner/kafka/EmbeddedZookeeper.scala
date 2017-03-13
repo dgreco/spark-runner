@@ -16,42 +16,54 @@
 
 package org.apache.spark.runner.kafka
 
-import java.io.{ File, FileNotFoundException, IOException }
+import java.io.File
 import java.net.{ InetAddress, InetSocketAddress }
 
+import org.apache.spark.runner.utils._
 import org.apache.zookeeper.server.{ NIOServerCnxnFactory, ServerCnxnFactory, ZooKeeperServer }
 
-@SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Throw", "org.wartremover.warts.Var", "org.wartremover.warts.NonUnitStatements"))
+import scala.util.{ Failure, Try }
+
+@SuppressWarnings(
+  Array(
+    "org.wartremover.warts.Null",
+    "org.wartremover.warts.Throw",
+    "org.wartremover.warts.Var",
+    "org.wartremover.warts.NonUnitStatements",
+    "org.wartremover.warts.NoNeedForMonad"
+  )
+)
 class EmbeddedZookeeper(port: Int, tickTime: Int) {
 
-  private var factory: ServerCnxnFactory = _
-  private var snapshotDir: File = _
-  private var logDir: File = _
+  private var factory: Try[ServerCnxnFactory] = Failure[ServerCnxnFactory]((new Exception("")))
+  private var snapshotDir: Try[File] = Failure[File](new Exception(""))
+  private var logDir: Try[File] = Failure[File](new Exception(""))
 
-  def startup(): Unit = {
+  def startup(): Try[Unit] = {
     val maxNumClients = 1024
-    factory = new NIOServerCnxnFactory()
-    factory.configure(new InetSocketAddress(InetAddress.getLocalHost.getHostAddress, port), maxNumClients)
+    factory = Try {
+      new NIOServerCnxnFactory()
+    }
     snapshotDir = constructTempDir("embedded-zk/snapshot")
     logDir = constructTempDir("embedded-zk/log")
-    try factory.startup(new ZooKeeperServer(snapshotDir, logDir, tickTime))
-    catch {
-      case e: InterruptedException => throw new IOException(e)
+    Try {
+      for {
+        f <- factory
+        s <- snapshotDir
+        l <- logDir
+      } {
+        f.configure(new InetSocketAddress(InetAddress.getLocalHost.getHostAddress, port), maxNumClients)
+        f.startup(new ZooKeeperServer(s, l, tickTime))
+      }
     }
   }
 
-  def shutdown(): Unit = {
-    factory.shutdown()
-    try deleteFile(snapshotDir)
-    catch {
-      case _: FileNotFoundException =>
-      // ignore
+  def shutdown(): Try[Unit] = {
+    Try {
+      factory.foreach(_.shutdown())
+      snapshotDir.foreach(deleteFile(_))
+      logDir.foreach(deleteFile(_))
     }
-    try deleteFile(logDir)
-    catch {
-      case _: FileNotFoundException =>
-    }
-    ()
   }
 
   def getConnection: String = s"${InetAddress.getLocalHost.getHostAddress}:$port"

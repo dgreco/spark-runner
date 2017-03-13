@@ -17,10 +17,9 @@
 package me.davidgreco.examples.sparkrunner
 
 import java.io.File
-import java.net.InetAddress
 
 import org.apache.spark.runner._
-import org.apache.spark.streaming.{ Seconds, StreamingContext }
+import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
 
 import scala.language.postfixOps
@@ -66,12 +65,9 @@ object Main extends App {
 
   implicit val sparkContext: SparkContext = new SparkContext(conf)
 
-  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Seconds(1))
+  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
 
-  val func = () => {
-    val host = InetAddress.getLocalHost.getHostAddress
-    Stream.continually(host)
-  }
+  val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => Stream.continually(ec.address).foreach(item => ec.send(item))
 
   streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(println(_)))
 

@@ -22,30 +22,38 @@ import java.util.Properties
 
 import kafka.server.{ KafkaConfig, KafkaServer }
 import kafka.utils.SystemTime
+import org.apache.spark.runner.utils._
+
+import scala.util.{ Failure, Try }
 
 @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Var", "org.wartremover.warts.NonUnitStatements"))
 class EmbeddedKafka(id: Int, zkConnection: String, port: Int) {
 
-  var kafkaServer: KafkaServer = _
+  private var kafkaServer: Try[KafkaServer] = Failure[KafkaServer](new Exception())
 
-  var logDir: File = _
+  private var logDir: Try[File] = Failure[File](new Exception())
 
-  def startup(): Unit = {
+  def startup(): Try[Unit] = {
     logDir = constructTempDir("kafka-local")
-    val properties = new Properties()
-    properties.setProperty("zookeeper.connect", zkConnection)
-    properties.setProperty("broker.id", id.toString)
-    properties.setProperty("host.name", InetAddress.getLocalHost.getHostAddress)
-    properties.setProperty("port", Integer.toString(port))
-    properties.setProperty("log.dir", logDir.getAbsolutePath)
-    properties.setProperty("log.flush.interval.messages", String.valueOf(1))
-    kafkaServer = new KafkaServer(new KafkaConfig(properties, false), SystemTime)
-    kafkaServer.startup()
+    val properties = logDir.map(l => {
+      val properties = new Properties()
+      properties.setProperty("zookeeper.connect", zkConnection)
+      properties.setProperty("broker.id", id.toString)
+      properties.setProperty("host.name", InetAddress.getLocalHost.getHostAddress)
+      properties.setProperty("port", Integer.toString(port))
+      properties.setProperty("log.dir", l.getAbsolutePath)
+      properties.setProperty("log.flush.interval.messages", String.valueOf(1))
+      properties
+    })
+    kafkaServer = properties.map(p => new KafkaServer(new KafkaConfig(p, false), SystemTime))
+    Try {
+      kafkaServer.foreach(_.startup())
+    }
   }
 
-  def shutdown(): Unit = {
-    kafkaServer.shutdown()
-    val _ = deleteFile(logDir)
+  def shutdown(): Try[Unit] = Try {
+    kafkaServer.foreach(_.shutdown())
+    logDir.foreach(deleteFile(_))
   }
 
   def getConnection: String = s"${InetAddress.getLocalHost.getHostAddress}:$port"
