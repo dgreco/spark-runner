@@ -66,6 +66,8 @@ wartremoverErrors ++= Seq(
 
 val sparkVersion = "2.0.0.cloudera2"
 
+val kafkaVersion = "0.9.0-kafka-2.0.0"
+
 val hadoopVersion = "2.6.0-cdh5.9.0"
 
 val scalaTestVersion = "3.0.1"
@@ -86,7 +88,9 @@ val sparkExcludes =
     exclude("org.apache.hadoop", "hadoop-yarn-server-web-proxy")
 
 val assemblyDependencies = (scope: String) => Seq(
-  sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion % scope)
+  sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion % scope),
+  "org.apache.kafka" % "kafka-clients" % kafkaVersion % scope,
+  "org.apache.kafka" %% "kafka" % kafkaVersion % scope
 )
 
 val hadoopClientExcludes =

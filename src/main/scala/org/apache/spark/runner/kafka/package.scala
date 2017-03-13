@@ -33,8 +33,7 @@ package object kafka {
       ProducerConfig.ACKS_CONFIG -> "1",
       ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG -> K.runtimeClass.getName,
       ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG -> V.runtimeClass.getName
-    )
-      .foldLeft(new Properties()) { (props, pair) =>
+    ).foldLeft(new Properties()) { (props, pair) =>
         val _ = props.setProperty(pair._1, pair._2)
         props
       }
