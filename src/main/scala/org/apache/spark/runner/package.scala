@@ -17,7 +17,7 @@
 package org.apache.spark
 
 import java.io.File
-import java.net.{ InetAddress, URL, URLClassLoader }
+import java.net.{InetAddress, URL, URLClassLoader}
 import java.util.Properties
 
 import kafka.admin.AdminUtils
@@ -27,7 +27,7 @@ import org.I0Itec.zkclient.ZkClient
 import org.I0Itec.zkclient.serialize.ZkSerializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.rdd.RDD
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer }
+import org.apache.spark.runner.kafka.{EmbeddedKafka, EmbeddedZookeeper, makeProducer}
 import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
@@ -115,19 +115,25 @@ package object runner {
     }, preservesPartitioning = true).collect()
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf", "org.wartremover.warts.ToString", "org.wartremover.warts.While"))
+  @SuppressWarnings(
+    Array(
+      "org.wartremover.warts.AsInstanceOf",
+      "org.wartremover.warts.ToString",
+      "org.wartremover.warts.While",
+      "org.wartremover.warts.NonUnitStatements")
+  )
   def streamingExecuteOnNodes(func: StreamingExecutionContext => Unit)(implicit streamingContext: StreamingContext): DStream[(String, String)] = {
     val TOPIC_LENGTH = 10
     val TOPIC = Random.alphanumeric.take(TOPIC_LENGTH).mkString
     val CLIENT_ID_LENGTH = 10
-    val CLIENT_ID = Random.alphanumeric.take(TOPIC_LENGTH).mkString
+    val CLIENT_ID = Random.alphanumeric.take(CLIENT_ID_LENGTH).mkString
 
     val zkPort = getAvailablePort
     implicit val sparkContext: SparkContext = streamingContext.sparkContext
     val nodes = getNodes
     val numNodes = nodes.length
     val embeddedZookeeper = new EmbeddedZookeeper(zkPort, TICK_TIME)
-    val _ = embeddedZookeeper.startup()
+    embeddedZookeeper.startup()
     val zkConnection = embeddedZookeeper.getConnection
     val brokers = executeOnNodes(ec => {
       val kafkaPort = getAvailablePort
@@ -151,7 +157,7 @@ package object runner {
     )
     val topics = Set(TOPIC)
     val stream = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
-    val _2 = executeOnNodes(ec => {
+    executeOnNodes(ec => {
       val tryProducer = makeProducer[String, String, StringSerializer, StringSerializer](CLIENT_ID, brokers)
       new Thread(new Runnable {
         override def run(): Unit = tryProducer.foreach(producer => {
