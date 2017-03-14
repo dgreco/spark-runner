@@ -26,6 +26,7 @@ import kafka.utils.ZkUtils
 import org.I0Itec.zkclient.ZkClient
 import org.I0Itec.zkclient.serialize.ZkSerializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer }
@@ -33,6 +34,7 @@ import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
 import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.api.java.{ JavaDStream, JavaStreamingContext }
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.KafkaUtils
 
@@ -118,6 +120,16 @@ package object runner extends Logging {
 
   @SuppressWarnings(
     Array(
+      "org.wartremover.warts.Any"
+    )
+  )
+  def jexecuteOnNodes(func: java.util.function.Function[ExecutionContext, _], sparkContext: JavaSparkContext): Array[_] = {
+    val sfunc = (ec: ExecutionContext) => func.apply(ec)
+    executeOnNodes(sfunc)(sparkContext.sc, JavaSparkContext.fakeClassTag)
+  }
+
+  @SuppressWarnings(
+    Array(
       "org.wartremover.warts.AsInstanceOf",
       "org.wartremover.warts.ToString",
       "org.wartremover.warts.While",
@@ -189,6 +201,19 @@ package object runner extends Logging {
       }).start()
     })
     stream
+  }
+
+  @SuppressWarnings(
+    Array(
+      "org.wartremover.warts.Any"
+    )
+  )
+  def jstreamingExecuteOnNodes(
+    func: java.util.function.Consumer[StreamingExecutionContext],
+    streamingContext: JavaStreamingContext
+  ): JavaDStream[Tuple2[String, String]] = {
+    val sfunc: StreamingExecutionContext => Unit = (ec: StreamingExecutionContext) => func.accept(ec)
+    streamingExecuteOnNodes(sfunc)(streamingContext.ssc)
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.Equals"))

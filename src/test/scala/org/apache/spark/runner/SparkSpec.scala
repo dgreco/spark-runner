@@ -18,10 +18,14 @@ package org.apache.spark.runner
 
 import java.net.{ InetAddress, Socket }
 import java.util.concurrent.CountDownLatch
+import java.util.function
+import java.util.function.Consumer
 
+import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper }
 import org.apache.spark.runner.utils._
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.streaming.api.java.JavaStreamingContext
 import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
@@ -99,6 +103,20 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
   }
 
   "Spark" must {
+    "run a function correctly using the Java APIs" in {
+      implicit val sparkContext: SparkContext = sparkSession.sparkContext
+
+      val nodes = getNodes
+
+      val func = new function.Function[ExecutionContext, (String, String)] with java.io.Serializable {
+        override def apply(t: ExecutionContext): (String, String) = GetAddress(t)
+      }
+
+      JRunner.executeOnNodes(func, new JavaSparkContext(sparkContext)).map(_._1).toSet must be(nodes.toSet)
+    }
+  }
+
+  "Spark" must {
     "run a function and streaming the result correctly" in {
       val batchIntervalInMillis = 100L
 
@@ -117,6 +135,36 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
       }
 
       streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(_ => latch.countDown()))
+
+      streamingContext.start()
+
+      latch.await()
+
+      streamingContext.stop(false)
+
+    }
+  }
+
+  "Spark" must {
+    "run a function and streaming the result correctly using the Java APIs" in {
+      val batchIntervalInMillis = 100L
+
+      val numItems = 100
+
+      implicit val sparkContext: SparkContext = sparkSession.sparkContext
+
+      implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(batchIntervalInMillis))
+
+      val latch = new CountDownLatch(numItems)
+
+      val func: Consumer[StreamingExecutionContext] = new Consumer[StreamingExecutionContext] with java.io.Serializable {
+        override def accept(ec: StreamingExecutionContext): Unit = for (i <- 1 to numItems) {
+          ec.send(i.toString)
+        }
+      }
+
+      JRunner.jstreamingExecuteOnNodes(func, new JavaStreamingContext(streamingContext)).dstream.
+        foreachRDD(rdd => rdd.collect().foreach(_ => latch.countDown()))
 
       streamingContext.start()
 
