@@ -17,7 +17,7 @@
 package org.apache.spark
 
 import java.io.File
-import java.net.{InetAddress, URL, URLClassLoader}
+import java.net.{ InetAddress, URL, URLClassLoader }
 import java.util.Properties
 
 import kafka.admin.AdminUtils
@@ -28,7 +28,7 @@ import org.I0Itec.zkclient.serialize.ZkSerializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.runner.kafka.{EmbeddedKafka, EmbeddedZookeeper, makeProducer}
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer }
 import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
@@ -121,7 +121,8 @@ package object runner extends Logging {
       "org.wartremover.warts.AsInstanceOf",
       "org.wartremover.warts.ToString",
       "org.wartremover.warts.While",
-      "org.wartremover.warts.NonUnitStatements")
+      "org.wartremover.warts.NonUnitStatements"
+    )
   )
   def streamingExecuteOnNodes(func: StreamingExecutionContext => Unit)(implicit streamingContext: StreamingContext): DStream[(String, String)] = {
     val TOPIC_LENGTH = 10
