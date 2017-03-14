@@ -211,7 +211,7 @@ package object runner extends Logging {
   def jstreamingExecuteOnNodes(
     func: java.util.function.Consumer[StreamingExecutionContext],
     streamingContext: JavaStreamingContext
-  ): JavaDStream[Tuple2[String, String]] = {
+  ): JavaDStream[(String, String)] = {
     val sfunc: StreamingExecutionContext => Unit = (ec: StreamingExecutionContext) => func.accept(ec)
     streamingExecuteOnNodes(sfunc)(streamingContext.ssc)
   }
