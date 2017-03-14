@@ -5,9 +5,7 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import scala.Tuple2;
 
-import java.io.Serializable;
-
-public class JRunner implements Serializable {
+public class JRunner {
 
     public static String[] getNodes(JavaSparkContext sparkContex) {
         return package$.MODULE$.getNodes(sparkContex.sc());
@@ -17,7 +15,7 @@ public class JRunner implements Serializable {
         return (T[]) package$.MODULE$.jexecuteOnNodes(func, sparkContext);
     }
 
-    public static JavaDStream<Tuple2<String, String>> jstreamingExecuteOnNodes(java.util.function.Consumer<StreamingExecutionContext> func, JavaStreamingContext streamingContext) {
+    public static JavaDStream<Tuple2<String, String>> streamingExecuteOnNodes(java.util.function.Consumer<StreamingExecutionContext> func, JavaStreamingContext streamingContext) {
         return package$.MODULE$.jstreamingExecuteOnNodes(func, streamingContext);
     }
 

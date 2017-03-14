@@ -16,20 +16,20 @@
 
 package org.apache.spark.runner
 
-import java.net.{ InetAddress, Socket }
+import java.net.{InetAddress, Socket}
 import java.util.concurrent.CountDownLatch
 import java.util.function
 import java.util.function.Consumer
 
 import org.apache.spark.api.java.JavaSparkContext
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper }
+import org.apache.spark.runner.kafka.{EmbeddedKafka, EmbeddedZookeeper}
 import org.apache.spark.runner.utils._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.api.java.JavaStreamingContext
-import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
-import org.apache.spark.{ SparkConf, SparkContext }
-import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
-import org.scalatest.{ BeforeAndAfterAll, MustMatchers, WordSpec }
+import org.apache.spark.streaming.{Milliseconds, StreamingContext}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.zookeeper.{WatchedEvent, Watcher, ZooKeeper}
+import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 
 @SuppressWarnings(Array("org.wartremover.warts.Var", "org.wartremover.warts.Null"))
 class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
@@ -151,9 +151,9 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
       val numItems = 100
 
-      implicit val sparkContext: SparkContext = sparkSession.sparkContext
+      val sparkContext: SparkContext = sparkSession.sparkContext
 
-      implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(batchIntervalInMillis))
+      val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(batchIntervalInMillis))
 
       val latch = new CountDownLatch(numItems)
 
@@ -163,7 +163,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
         }
       }
 
-      JRunner.jstreamingExecuteOnNodes(func, new JavaStreamingContext(streamingContext)).dstream.
+      JRunner.streamingExecuteOnNodes(func, new JavaStreamingContext(streamingContext)).dstream.
         foreachRDD(rdd => rdd.collect().foreach(_ => latch.countDown()))
 
       streamingContext.start()
@@ -172,6 +172,14 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
       streamingContext.stop(false)
 
+    }
+  }
+
+  "Spark" must {
+    "return the list of the executor nodes correctly using the Java APIs" in {
+      val sparkContext: SparkContext = sparkSession.sparkContext
+
+      JRunner.getNodes(new JavaSparkContext(sparkContext)).head must be(InetAddress.getLocalHost.getHostAddress)
     }
   }
 
