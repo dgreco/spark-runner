@@ -164,14 +164,14 @@ package object runner extends Logging {
 
     val brokerIds = {
       val brokerIds = (0 until numNodes).toSet
-      numOfKafkaBrokers.fold(brokerIds)(nb => if (nb >= numNodes)
-        throw new InvalidParameterException(s"numOfKafkaBrokers must be less than $numNodes")
+      numOfKafkaBrokers.fold(brokerIds)(nb => if (nb >= numNodes || nb < 1)
+        throw new InvalidParameterException(s"numOfKafkaBrokers must be less than $numNodes and greater than 0")
       else
         Random.shuffle(brokerIds).take(nb))
     }
     val sbrokerIds = sparkContext.broadcast(brokerIds)
 
-    log.info("Starting Kafka on all the executors")
+    log.info(s"Starting Kafka on the executors with ids = ${brokerIds.mkString(", ")}")
     val brokers = executeOnNodes(ec => {
       if (sbrokerIds.value.contains(ec.id)) {
         val kafkaPort = getAvailablePort

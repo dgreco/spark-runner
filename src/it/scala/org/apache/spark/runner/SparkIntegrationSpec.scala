@@ -16,6 +16,8 @@
 
 package org.apache.spark.runner
 
+import java.security.InvalidParameterException
+
 import org.apache.spark.runner.functions.{GetAddress, SendNInts}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
@@ -76,6 +78,15 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var counter = 0
+
+      an [InvalidParameterException] should be thrownBy {
+        streamingExecuteOnNodes(SendNInts(numItems), Some(5)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
+      }
+
+      an [InvalidParameterException] should be thrownBy {
+        streamingExecuteOnNodes(SendNInts(numItems), Some(0)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
+      }
+
       streamingExecuteOnNodes(SendNInts(numItems), Some(2)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
 
       streamingContext.start()
