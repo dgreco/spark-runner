@@ -32,6 +32,6 @@ object GetAddress extends (ExecutionContext => (String, String)) with Serializab
 final case class SendNInts(numInts: Int) extends (StreamingExecutionContext => Unit) with Serializable {
   override def apply(ec: StreamingExecutionContext): Unit = {
     for (i <- 1 to numInts)
-      ec.send(i.toString)
+      ec.send(i.toString.getBytes)
   }
 }

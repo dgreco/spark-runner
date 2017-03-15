@@ -69,10 +69,10 @@ object Main extends App {
 
   val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => Stream.continually(ec.address).foreach(item => {
     Thread.sleep(100)
-    ec.send(item)
+    ec.send(item.getBytes)
   })
 
-  streamingExecuteOnNodes(func, Some(2)).foreachRDD(rdd => rdd.collect().foreach(println(_)))
+  streamingExecuteOnNodes(func, Some(2)).foreachRDD(rdd => rdd.collect().foreach(p => println((p._1, new String(p._2)))))
 
   streamingContext.start()
 

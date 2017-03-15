@@ -22,11 +22,11 @@ import java.security.InvalidParameterException
 import java.util.Properties
 
 import kafka.admin.AdminUtils
-import kafka.serializer.StringDecoder
+import kafka.serializer.{ DefaultDecoder, StringDecoder }
 import kafka.utils.ZkUtils
 import org.I0Itec.zkclient.ZkClient
 import org.I0Itec.zkclient.serialize.ZkSerializer
-import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.kafka.common.serialization.{ ByteArraySerializer, StringSerializer }
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -137,7 +137,7 @@ package object runner extends Logging {
   def streamingExecuteOnNodes(
     func: StreamingExecutionContext => Unit,
     numOfKafkaBrokers: Option[Int] = None
-  )(implicit streamingContext: StreamingContext): DStream[(String, String)] = {
+  )(implicit streamingContext: StreamingContext): DStream[(String, Array[Byte])] = {
     val TOPIC_LENGTH = 10
     val TOPIC = Random.alphanumeric.take(TOPIC_LENGTH).mkString
     val CLIENT_ID_LENGTH = 10
@@ -206,12 +206,12 @@ package object runner extends Logging {
     val kafkaParams = Map[String, String](
       "metadata.broker.list" -> brokers
     )
-    val stream = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](streamingContext, kafkaParams, topics)
+    val stream = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](streamingContext, kafkaParams, topics)
     log.info(s"Created the Kafka direct stream")
 
     log.info(s"Starting the function execution on all the executors")
     val _ = executeOnNodes(ec => {
-      val tryProducer = makeProducer[String, String, StringSerializer, StringSerializer](CLIENT_ID, brokers)
+      val tryProducer = makeProducer[String, Array[Byte], StringSerializer, ByteArraySerializer](CLIENT_ID, brokers)
       new Thread(new Runnable {
         override def run(): Unit = tryProducer.foreach(producer => {
           val id = if (numOfKafkaBrokers.isEmpty)
@@ -230,7 +230,7 @@ package object runner extends Logging {
   def jstreamingExecuteOnNodes(
     func: java.util.function.Consumer[StreamingExecutionContext],
     streamingContext: JavaStreamingContext
-  ): JavaDStream[(String, String)] = {
+  ): JavaDStream[(String, Array[Byte])] = {
     val sfunc: StreamingExecutionContext => Unit = (ec: StreamingExecutionContext) => func.accept(ec)
     streamingExecuteOnNodes(sfunc)(streamingContext.ssc)
   }

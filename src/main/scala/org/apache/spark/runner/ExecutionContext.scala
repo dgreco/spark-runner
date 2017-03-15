@@ -28,6 +28,6 @@ sealed trait ExecutionContext {
 
 final case class SimpleExecutionContext(id: Int, address: String) extends ExecutionContext
 
-final case class StreamingExecutionContext(id: Int, address: String, topic: String, producer: KafkaProducer[String, String]) extends ExecutionContext {
-  def send(value: String): Future[RecordMetadata] = producer.send(new ProducerRecord[String, String](topic, id, address, value))
+final case class StreamingExecutionContext(id: Int, address: String, topic: String, producer: KafkaProducer[String, Array[Byte]]) extends ExecutionContext {
+  def send(value: Array[Byte]): Future[RecordMetadata] = producer.send(new ProducerRecord[String, Array[Byte]](topic, id, address, value))
 }

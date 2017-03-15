@@ -15,7 +15,7 @@ public class JRunner {
         return (T[]) package$.MODULE$.jexecuteOnNodes(func, sparkContext);
     }
 
-    public static JavaDStream<Tuple2<String, String>> streamingExecuteOnNodes(java.util.function.Consumer<StreamingExecutionContext> func, JavaStreamingContext streamingContext) {
+    public static JavaDStream<Tuple2<String, byte[]>> streamingExecuteOnNodes(java.util.function.Consumer<StreamingExecutionContext> func, JavaStreamingContext streamingContext) {
         return package$.MODULE$.jstreamingExecuteOnNodes(func, streamingContext);
     }
 

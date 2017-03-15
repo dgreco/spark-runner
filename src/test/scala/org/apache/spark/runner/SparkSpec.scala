@@ -131,7 +131,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
       val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
         for (i <- 1 to numItems) {
-          ec.send(i.toString)
+          ec.send(i.toString.getBytes)
         }
       }
 
@@ -160,7 +160,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
       val func: Consumer[StreamingExecutionContext] = new Consumer[StreamingExecutionContext] with java.io.Serializable {
         override def accept(ec: StreamingExecutionContext): Unit = for (i <- 1 to numItems) {
-          ec.send(i.toString)
+          ec.send(i.toString.getBytes)
         }
       }
 
