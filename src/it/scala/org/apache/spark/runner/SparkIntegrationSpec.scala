@@ -16,7 +16,9 @@
 
 package org.apache.spark.runner
 
+import org.apache.spark.runner.functions.{GetAddress, SendNInts}
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 
@@ -44,7 +46,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
       set("spark.speculation", "true").
       set("spark.shuffle.manager", "sort").
       set("spark.shuffle.service.enabled", "true").
-      set("spark.executor.instances", Integer.toString(2)).
+      set("spark.executor.instances", Integer.toString(4)).
       set("spark.executor.cores", Integer.toString(1)).
       set("spark.executor.memory", "512m")
     sparkSession = SparkSession.builder().config(conf).getOrCreate()
@@ -57,6 +59,33 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
       val nodes = getNodes
 
       executeOnNodes[(String, String)](GetAddress).map(_._1).toSet must be(getNodes.toSet)
+    }
+  }
+
+  "Spark" must {
+    "run a function and streaming the result correctly" in {
+      val batchIntervalInMillis = 100L
+
+      val numItems = 100
+
+      implicit val sparkContext: SparkContext = sparkSession.sparkContext
+
+      implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(batchIntervalInMillis))
+
+      val numNodes = numOfSparkExecutors
+
+      @SuppressWarnings(Array("org.wartremover.warts.Var"))
+      var counter = 0
+      streamingExecuteOnNodes(SendNInts(numItems)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
+
+      streamingContext.start()
+
+      Thread.sleep(1000)
+
+      counter must be(numItems * numNodes)
+
+      streamingContext.stop(false)
+
     }
   }
 

@@ -22,6 +22,7 @@ import java.util.function
 import java.util.function.Consumer
 
 import org.apache.spark.api.java.JavaSparkContext
+import org.apache.spark.runner.functions.GetAddress
 import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper }
 import org.apache.spark.runner.utils._
 import org.apache.spark.sql.SparkSession

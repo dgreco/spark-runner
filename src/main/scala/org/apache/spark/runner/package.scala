@@ -118,11 +118,7 @@ package object runner extends Logging {
     }, preservesPartitioning = true).collect()
   }
 
-  @SuppressWarnings(
-    Array(
-      "org.wartremover.warts.Any"
-    )
-  )
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def jexecuteOnNodes(func: java.util.function.Function[ExecutionContext, _], sparkContext: JavaSparkContext): Array[_] = {
     val sfunc = (ec: ExecutionContext) => func.apply(ec)
     executeOnNodes(sfunc)(sparkContext.sc, JavaSparkContext.fakeClassTag)
@@ -203,11 +199,7 @@ package object runner extends Logging {
     stream
   }
 
-  @SuppressWarnings(
-    Array(
-      "org.wartremover.warts.Any"
-    )
-  )
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def jstreamingExecuteOnNodes(
     func: java.util.function.Consumer[StreamingExecutionContext],
     streamingContext: JavaStreamingContext
@@ -216,13 +208,5 @@ package object runner extends Logging {
     streamingExecuteOnNodes(sfunc)(streamingContext.ssc)
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.Equals"))
-  object GetAddress extends (ExecutionContext => (String, String)) with Serializable {
-    override def apply(ec: ExecutionContext): (String, String) = {
-      val address: InetAddress = InetAddress.getLocalHost
-      assert(ec.address == address.getHostAddress)
-      (address.getHostAddress, address.getHostName)
-    }
-  }
-
 }
+
