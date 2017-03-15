@@ -53,7 +53,7 @@ object Main extends App {
         set("spark.speculation", "true").
         set("spark.shuffle.manager", "sort").
         set("spark.shuffle.service.enabled", "true").
-        set("spark.executor.instances", Integer.toString(2)).
+        set("spark.executor.instances", Integer.toString(4)).
         set("spark.executor.cores", Integer.toString(1)).
         set("spark.executor.memory", "512m")
     } else {
@@ -67,9 +67,12 @@ object Main extends App {
 
   implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
 
-  val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => Stream.continually(ec.address).foreach(item => ec.send(item))
+  val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => Stream.continually(ec.address).foreach(item => {
+    Thread.sleep(100)
+    ec.send(item)
+  })
 
-  streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(println(_)))
+  streamingExecuteOnNodes(func, Some(2)).foreachRDD(rdd => rdd.collect().foreach(println(_)))
 
   streamingContext.start()
 

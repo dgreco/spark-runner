@@ -76,7 +76,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var counter = 0
-      streamingExecuteOnNodes(SendNInts(numItems)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
+      streamingExecuteOnNodes(SendNInts(numItems), Some(2)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
 
       streamingContext.start()
 

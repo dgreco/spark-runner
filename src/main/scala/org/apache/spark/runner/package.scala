@@ -18,6 +18,7 @@ package org.apache.spark
 
 import java.io.File
 import java.net.{ InetAddress, URL, URLClassLoader }
+import java.security.InvalidParameterException
 import java.util.Properties
 
 import kafka.admin.AdminUtils
@@ -129,10 +130,14 @@ package object runner extends Logging {
       "org.wartremover.warts.AsInstanceOf",
       "org.wartremover.warts.ToString",
       "org.wartremover.warts.While",
-      "org.wartremover.warts.NonUnitStatements"
+      "org.wartremover.warts.DefaultArguments",
+      "org.wartremover.warts.Throw"
     )
   )
-  def streamingExecuteOnNodes(func: StreamingExecutionContext => Unit)(implicit streamingContext: StreamingContext): DStream[(String, String)] = {
+  def streamingExecuteOnNodes(
+    func: StreamingExecutionContext => Unit,
+    numOfKafkaBrokers: Option[Int] = None
+  )(implicit streamingContext: StreamingContext): DStream[(String, String)] = {
     val TOPIC_LENGTH = 10
     val TOPIC = Random.alphanumeric.take(TOPIC_LENGTH).mkString
     val CLIENT_ID_LENGTH = 10
@@ -147,20 +152,37 @@ package object runner extends Logging {
       if (ec.id == 0) {
         val zkPort = getAvailablePort
         val embeddedZookeeper = new EmbeddedZookeeper(zkPort, TICK_TIME)
-        embeddedZookeeper.startup()
-        Some(embeddedZookeeper.getConnection)
+        val resp = embeddedZookeeper.startup()
+        if (resp.isSuccess)
+          Some(embeddedZookeeper.getConnection)
+        else
+          None
       } else
         None
     }).filter(_.isDefined).head.getOrElse("")
     log.info(s"Zookeeper started with connection = $zkConnection")
 
+    val brokerIds = {
+      val brokerIds = (0 until numNodes).toSet
+      numOfKafkaBrokers.fold(brokerIds)(nb => if (nb >= numNodes)
+        throw new InvalidParameterException(s"numOfKafkaBrokers must be less than $numNodes")
+      else
+        Random.shuffle(brokerIds).take(nb))
+    }
+    val sbrokerIds = sparkContext.broadcast(brokerIds)
+
     log.info("Starting Kafka on all the executors")
     val brokers = executeOnNodes(ec => {
-      val kafkaPort = getAvailablePort
-      val kafkaServer = new EmbeddedKafka(ec.id, zkConnection, kafkaPort)
-      val _ = kafkaServer.startup()
-      kafkaServer.getConnection
-    }).mkString(",")
+      if (sbrokerIds.value.contains(ec.id)) {
+        val kafkaPort = getAvailablePort
+        val kafkaServer = new EmbeddedKafka(ec.id, zkConnection, kafkaPort)
+        val resp = kafkaServer.startup()
+        if (resp.isSuccess)
+          Some(kafkaServer.getConnection)
+        else
+          None
+      } else None
+    }).filter(_.isDefined).map(_.getOrElse("")).mkString(",")
     log.info(s"Kafka started with brokers = $brokers")
 
     log.info(s"Creating the topic $TOPIC")
@@ -170,7 +192,7 @@ package object runner extends Logging {
       def deserialize(bytes: Array[Byte]): Object = new String(bytes, "UTF-8")
     })
     val zkUtils = ZkUtils.apply(zkClient, isZkSecurityEnabled = false)
-    AdminUtils.createTopic(zkUtils, TOPIC, numNodes, 1, new Properties())
+    AdminUtils.createTopic(zkUtils, TOPIC, brokerIds.size, 1, new Properties())
     Thread.sleep(SLEEP)
     while (try {
       !AdminUtils.topicExists(zkUtils, TOPIC)
@@ -188,11 +210,16 @@ package object runner extends Logging {
     log.info(s"Created the Kafka direct stream")
 
     log.info(s"Starting the function execution on all the executors")
-    executeOnNodes(ec => {
+    val _ = executeOnNodes(ec => {
       val tryProducer = makeProducer[String, String, StringSerializer, StringSerializer](CLIENT_ID, brokers)
       new Thread(new Runnable {
         override def run(): Unit = tryProducer.foreach(producer => {
-          func(StreamingExecutionContext(ec.id, ec.address, TOPIC, producer))
+          val id = if (numOfKafkaBrokers.isEmpty)
+            ec.id
+          else {
+            Random.nextInt(numOfKafkaBrokers.getOrElse(0))
+          }
+          func(StreamingExecutionContext(id, ec.address, TOPIC, producer))
         })
       }).start()
     })
