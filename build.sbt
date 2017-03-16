@@ -140,6 +140,8 @@ fork := true
 
 parallelExecution in Test := false
 
+isSnapshot := true
+
 lazy val root = (project in file(".")).
   configs(IntegrationTest).
   settings(Defaults.itSettings: _*).

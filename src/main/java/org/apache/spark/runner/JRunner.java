@@ -19,4 +19,8 @@ public class JRunner {
         return package$.MODULE$.jstreamingExecuteOnNodes(func, streamingContext);
     }
 
+    public static JavaDStream<Tuple2<String, byte[]>> streamingExecuteOnNodes(java.util.function.Consumer<StreamingExecutionContext> func, int numOfKafkaBrokers, JavaStreamingContext streamingContext) {
+        return package$.MODULE$.jstreamingExecuteOnNodes(func, numOfKafkaBrokers, streamingContext);
+    }
+
 }

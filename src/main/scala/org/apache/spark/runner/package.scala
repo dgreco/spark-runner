@@ -235,5 +235,15 @@ package object runner extends Logging {
     streamingExecuteOnNodes(sfunc)(streamingContext.ssc)
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.Overloading"))
+  def jstreamingExecuteOnNodes(
+    func: java.util.function.Consumer[StreamingExecutionContext],
+    numOfKafkaBrokers: Int,
+    streamingContext: JavaStreamingContext
+  ): JavaDStream[(String, Array[Byte])] = {
+    val sfunc: StreamingExecutionContext => Unit = (ec: StreamingExecutionContext) => func.accept(ec)
+    streamingExecuteOnNodes(sfunc, Some(numOfKafkaBrokers))(streamingContext.ssc)
+  }
+
 }
 
