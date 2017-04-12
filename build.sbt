@@ -64,7 +64,7 @@ wartremoverErrors ++= Seq(
   Wart.While
 )
 
-val sparkVersion = "2.0.0.cloudera2"
+val sparkVersion = "2.1.0.cloudera1"
 
 val kafkaVersion = "0.9.0-kafka-2.0.0"
 
@@ -145,6 +145,11 @@ isSnapshot := true
 lazy val root = (project in file(".")).
   configs(IntegrationTest).
   settings(Defaults.itSettings: _*).
+  settings(
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % scalaTestVersion % "it,test"
+    )
+  ).
   settings(
     headers := Map(
       "sbt" -> Apache2_0("2017", "David Greco"),

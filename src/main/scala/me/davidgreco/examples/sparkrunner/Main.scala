@@ -65,6 +65,8 @@ object Main extends App {
 
   implicit val sparkContext: SparkContext = new SparkContext(conf)
 
+  sparkContext.setLogLevel("ERROR")
+
   implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
 
   val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => Stream.continually(ec.address).foreach(item => {

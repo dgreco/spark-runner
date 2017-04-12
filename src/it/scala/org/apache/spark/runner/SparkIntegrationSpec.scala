@@ -24,6 +24,7 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 
+@SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
 class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
   @SuppressWarnings(Array("org.wartremover.warts.Var", "org.wartremover.warts.Null"))
