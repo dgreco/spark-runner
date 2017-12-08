@@ -22,11 +22,10 @@ import java.security.InvalidParameterException
 import java.util.Properties
 
 import kafka.admin.AdminUtils
-import kafka.serializer.{ DefaultDecoder, StringDecoder }
 import kafka.utils.ZkUtils
 import org.I0Itec.zkclient.ZkClient
 import org.I0Itec.zkclient.serialize.ZkSerializer
-import org.apache.kafka.common.serialization.{ ByteArraySerializer, StringSerializer }
+import org.apache.kafka.common.serialization.{ ByteArrayDeserializer, ByteArraySerializer, StringSerializer }
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -37,16 +36,18 @@ import org.apache.spark.scheduler.local.LocalSchedulerBackend
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.api.java.{ JavaDStream, JavaStreamingContext }
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka.KafkaUtils
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.spark.streaming.kafka010.KafkaUtils
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 
 import scala.reflect.ClassTag
 import scala.util.Random
 
 package object runner extends Logging {
 
-  val TICK_TIME = 1000
-  val TIMEOUT = 1000
-  val SLEEP: Long = 1000
+  private val TICK_TIME = 1000
+  private val TIMEOUT = 1000
+  private val SLEEP: Long = 1000
 
   //Simple function for adding a directory to the system classpath
   def addPath(dir: String): Unit = {
@@ -61,15 +62,20 @@ package object runner extends Logging {
     codeSource.getLocation.getPath
   }
 
+  @SuppressWarnings(
+    Array(
+      "org.wartremover.warts.ImplicitParameter"))
   def numOfSparkExecutors(implicit sparkContext: SparkContext): Int = if (sparkContext.isLocal) 1 else {
     val sb = sparkContext.schedulerBackend
     sb match {
       case _: LocalSchedulerBackend => 1
       case b: CoarseGrainedSchedulerBackend => b.getExecutorIds.length
-      case _ => sparkContext.getExecutorStorageStatus.length - 1
     }
   }
 
+  @SuppressWarnings(
+    Array(
+      "org.wartremover.warts.ImplicitParameter"))
   def getNodes(implicit sparkContext: SparkContext): Array[String] = {
     val numNodes = numOfSparkExecutors(sparkContext)
 
@@ -95,6 +101,9 @@ package object runner extends Logging {
     }, preservesPartitioning = true).collect().distinct
   }
 
+  @SuppressWarnings(
+    Array(
+      "org.wartremover.warts.ImplicitParameter"))
   def executeOnNodes[T](func: ExecutionContext => T)(implicit sparkContext: SparkContext, ev: ClassTag[T]): Array[T] = {
     val numNodes = numOfSparkExecutors(sparkContext)
 
@@ -125,19 +134,17 @@ package object runner extends Logging {
     executeOnNodes(sfunc)(sparkContext.sc, JavaSparkContext.fakeClassTag)
   }
 
-  @SuppressWarnings(
-    Array(
-      "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.ToString",
-      "org.wartremover.warts.While",
-      "org.wartremover.warts.DefaultArguments",
-      "org.wartremover.warts.Throw"
-    )
-  )
+  @SuppressWarnings(Array(
+    "org.wartremover.warts.ImplicitParameter",
+    "org.wartremover.warts.Equals",
+    "org.wartremover.warts.AsInstanceOf",
+    "org.wartremover.warts.ToString",
+    "org.wartremover.warts.While",
+    "org.wartremover.warts.DefaultArguments",
+    "org.wartremover.warts.Throw"))
   def streamingExecuteOnNodes(
     func: StreamingExecutionContext => Unit,
-    numOfKafkaBrokers: Option[Int] = None
-  )(implicit streamingContext: StreamingContext): DStream[(String, Array[Byte])] = {
+    numOfKafkaBrokers: Option[Int] = None)(implicit streamingContext: StreamingContext): DStream[(String, Array[Byte])] = {
     val TOPIC_LENGTH = 10
     val TOPIC = Random.alphanumeric.take(TOPIC_LENGTH).mkString
     val CLIENT_ID_LENGTH = 10
@@ -203,10 +210,14 @@ package object runner extends Logging {
 
     log.info(s"Creating the Kafka direct stream")
     val topics = Set(TOPIC)
-    val kafkaParams = Map[String, String](
-      "metadata.broker.list" -> brokers
-    )
-    val stream = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](streamingContext, kafkaParams, topics)
+    val kafkaParams = Map[String, AnyRef](
+      "bootstrap.servers" -> brokers,
+      "key.deserializer" -> classOf[ByteArrayDeserializer],
+      "value.deserializer" -> classOf[ByteArrayDeserializer],
+      "auto.offset.reset" -> "earliest",
+      "enable.auto.commit" -> (true: java.lang.Boolean),
+      "group.id" -> "spark-runner-groupId")
+    val stream = KafkaUtils.createDirectStream(streamingContext, PreferConsistent, Subscribe[String, Array[Byte]](topics, kafkaParams))
     log.info(s"Created the Kafka direct stream")
 
     log.info(s"Starting the function execution on all the executors")
@@ -223,14 +234,13 @@ package object runner extends Logging {
         })
       }).start()
     })
-    stream
+    stream.map(cr => (cr.key(), cr.value()))
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def jstreamingExecuteOnNodes(
     func: java.util.function.Consumer[StreamingExecutionContext],
-    streamingContext: JavaStreamingContext
-  ): JavaDStream[(String, Array[Byte])] = {
+    streamingContext: JavaStreamingContext): JavaDStream[(String, Array[Byte])] = {
     val sfunc: StreamingExecutionContext => Unit = (ec: StreamingExecutionContext) => func.accept(ec)
     streamingExecuteOnNodes(sfunc)(streamingContext.ssc)
   }
@@ -239,8 +249,7 @@ package object runner extends Logging {
   def jstreamingExecuteOnNodes(
     func: java.util.function.Consumer[StreamingExecutionContext],
     numOfKafkaBrokers: Int,
-    streamingContext: JavaStreamingContext
-  ): JavaDStream[(String, Array[Byte])] = {
+    streamingContext: JavaStreamingContext): JavaDStream[(String, Array[Byte])] = {
     val sfunc: StreamingExecutionContext => Unit = (ec: StreamingExecutionContext) => func.accept(ec)
     streamingExecuteOnNodes(sfunc, Some(numOfKafkaBrokers))(streamingContext.ssc)
   }

@@ -1,21 +1,16 @@
-import de.heikoseeberger.sbtheader.license.Apache2_0
 import sbt._
 
 organization := "me.davidgreco.spark"
 
 name := "spark-runner"
 
-version in ThisBuild := "1.0"
+version in ThisBuild := "1.1"
 
 val assemblyName = "spark-runner-assembly"
 
-scalaVersion in ThisBuild := "2.11.8"
-
-scalariformSettings
+scalaVersion in ThisBuild := "2.11.12"
 
 scalastyleFailOnError := true
-
-dependencyUpdatesExclusions := moduleFilter(organization = "org.scala-lang")
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -30,45 +25,13 @@ scalacOptions ++= Seq(
   "-Xfuture"
 )
 
-wartremoverErrors ++= Seq(
-  Wart.Any,
-  Wart.Any2StringAdd,
-  Wart.AsInstanceOf,
-  Wart.DefaultArguments,
-  Wart.EitherProjectionPartial,
-  Wart.Enumeration,
-  Wart.Equals,
-  Wart.ExplicitImplicitTypes,
-  Wart.FinalCaseClass,
-  Wart.FinalVal,
-  Wart.ImplicitConversion,
-  Wart.IsInstanceOf,
-  Wart.JavaConversions,
-  Wart.LeakingSealed,
-  Wart.ListOps,
-  Wart.MutableDataStructures,
-  Wart.NoNeedForMonad,
-  Wart.NonUnitStatements,
-  Wart.Nothing,
-  Wart.Null,
-  Wart.Option2Iterable,
-  Wart.OptionPartial,
-  Wart.Overloading,
-  Wart.Product,
-  Wart.Return,
-  Wart.Serializable,
-  Wart.Throw,
-  Wart.ToString,
-  Wart.TryPartial,
-  Wart.Var,
-  Wart.While
-)
+wartremoverErrors ++= Warts.all
 
-val sparkVersion = "2.1.0.cloudera1"
+val sparkVersion = "2.2.0.cloudera1"
 
-val kafkaVersion = "0.9.0-kafka-2.0.0"
+val kafkaVersion = "0.11.0-kafka-3.0.0"
 
-val hadoopVersion = "2.6.0-cdh5.9.0"
+val hadoopVersion = "2.6.0-cdh5.13.0"
 
 val scalaTestVersion = "3.0.1"
 
@@ -88,7 +51,7 @@ val sparkExcludes =
     exclude("org.apache.hadoop", "hadoop-yarn-server-web-proxy")
 
 val assemblyDependencies = (scope: String) => Seq(
-  sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion % scope),
+  sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion % scope),
   "org.apache.kafka" % "kafka-clients" % kafkaVersion % scope,
   "org.apache.kafka" %% "kafka" % kafkaVersion % scope
 )
@@ -117,6 +80,10 @@ libraryDependencies ++= Seq(
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-server-web-proxy" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope)
 ) ++ assemblyDependencies(assemblyDependenciesScope)
+
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-annotations" % "2.6.5"
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.6.5"
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.5"
 
 //Trick to make Intellij/IDEA happy
 //We set all provided dependencies to none, so that they are included in the classpath of root module
@@ -147,16 +114,14 @@ lazy val root = (project in file(".")).
   settings(Defaults.itSettings: _*).
   settings(
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % scalaTestVersion % "it,test"
+      "log4j" % "log4j" % "1.2.17",
+      "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
     )
   ).
   settings(
-    headers := Map(
-      "sbt" -> Apache2_0("2017", "David Greco"),
-      "scala" -> Apache2_0("2017", "David Greco"),
-      "conf" -> Apache2_0("2017", "David Greco", "#"),
-      "properties" -> Apache2_0("2017", "David Greco", "#")
-    )
+    organizationName := "David Greco",
+    startYear := Some(2017),
+    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt"))
   ).
   settings(
     mappings in(Compile, packageBin) ~= {

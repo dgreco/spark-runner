@@ -21,7 +21,7 @@ import java.net.InetAddress
 import java.util.Properties
 
 import kafka.server.{ KafkaConfig, KafkaServer }
-import kafka.utils.SystemTime
+import org.apache.kafka.common.utils.SystemTime
 import org.apache.spark.runner.utils._
 
 import scala.util.{ Failure, Try }
@@ -43,9 +43,10 @@ class EmbeddedKafka(id: Int, zkConnection: String, port: Int) {
       properties.setProperty("port", Integer.toString(port))
       properties.setProperty("log.dir", l.getAbsolutePath)
       properties.setProperty("log.flush.interval.messages", String.valueOf(1))
+      properties.setProperty("offsets.topic.replication.factor", String.valueOf(1))
       properties
     })
-    kafkaServer = properties.map(p => new KafkaServer(new KafkaConfig(p, false), SystemTime))
+    kafkaServer = properties.map(p => new KafkaServer(new KafkaConfig(p, false), new SystemTime))
     Try {
       kafkaServer.foreach(_.startup())
     }

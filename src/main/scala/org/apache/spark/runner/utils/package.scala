@@ -40,14 +40,17 @@ package object utils {
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def constructTempDir(dirPrefix: String): Try[File] = Try {
     val rndinterval = 10000000
-    val file = new File(System.getProperty("java.io.tmpdir"), dirPrefix + Random.nextInt(rndinterval))
+    val file = new File(System.getProperty("java.io.tmpdir"), s"$dirPrefix${Random.nextInt(rndinterval)}")
     if (!file.mkdirs)
       throw new RuntimeException("could not create temp directory: " + file.getAbsolutePath)
     file.deleteOnExit()
     file
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.Var"))
+  @SuppressWarnings(Array(
+    "org.wartremover.warts.Recursion",
+    "org.wartremover.warts.Throw",
+    "org.wartremover.warts.Var"))
   def deleteFile(path: File): Boolean = {
     if (!path.exists()) {
       throw new FileNotFoundException(path.getAbsolutePath)

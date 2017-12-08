@@ -32,16 +32,14 @@ package object kafka {
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> brokers,
       ProducerConfig.ACKS_CONFIG -> "1",
       ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG -> K.runtimeClass.getName,
-      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG -> V.runtimeClass.getName
-    ).foldLeft(new Properties()) { (props, pair) =>
+      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG -> V.runtimeClass.getName).foldLeft(new Properties()) { (props, pair) =>
         val _ = props.setProperty(pair._1, pair._2)
         props
       }
 
   def makeProducer[A, B, AA <: KafkaSerializer[A], BB <: KafkaSerializer[B]](
     clientId: String,
-    brokers: String
-  )(implicit
+    brokers: String)(implicit
     AA: ClassTag[AA],
     BB: ClassTag[BB]): Try[KafkaProducer[A, B]] = Try {
     new KafkaProducer[A, B](producerProperties[AA, BB](clientId, brokers))

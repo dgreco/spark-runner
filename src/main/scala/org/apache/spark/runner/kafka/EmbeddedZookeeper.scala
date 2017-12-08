@@ -30,9 +30,7 @@ import scala.util.{ Failure, Try }
     "org.wartremover.warts.Throw",
     "org.wartremover.warts.Var",
     "org.wartremover.warts.NonUnitStatements",
-    "org.wartremover.warts.NoNeedForMonad"
-  )
-)
+    "org.wartremover.warts.NoNeedForMonad"))
 class EmbeddedZookeeper(port: Int, tickTime: Int) {
 
   private var factory: Try[ServerCnxnFactory] = Failure[ServerCnxnFactory]((new Exception("")))

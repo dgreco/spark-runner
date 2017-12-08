@@ -32,7 +32,12 @@ import org.apache.spark.{ SparkConf, SparkContext }
 import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
 import org.scalatest.{ BeforeAndAfterAll, MustMatchers, WordSpec }
 
-@SuppressWarnings(Array("org.wartremover.warts.Var", "org.wartremover.warts.Null", "org.wartremover.warts.NonUnitStatements"))
+@SuppressWarnings(Array(
+  "org.wartremover.warts.JavaSerializable",
+  "org.wartremover.warts.Equals",
+  "org.wartremover.warts.Var",
+  "org.wartremover.warts.Null",
+  "org.wartremover.warts.NonUnitStatements"))
 class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
   var sparkSession: SparkSession = _
