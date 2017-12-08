@@ -26,7 +26,7 @@ import scala.language.postfixOps
 
 object Main extends App {
 
-  val yarn = true
+  val yarn = false
 
   val conf: SparkConf = new SparkConf().setAppName("spark-runner-yarn")
 
@@ -74,7 +74,7 @@ object Main extends App {
     ec.send(item.getBytes)
   })
 
-  streamingExecuteOnNodes(func, Some(2)).foreachRDD(rdd => rdd.collect().foreach(p => println((p._1, new String(p._2)))))
+  streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(p => println((p._1, new String(p._2)))))
 
   streamingContext.start()
 

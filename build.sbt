@@ -1,3 +1,4 @@
+import sbt.Keys.dependencyOverrides
 import sbt._
 
 organization := "me.davidgreco.spark"
@@ -81,9 +82,9 @@ libraryDependencies ++= Seq(
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope)
 ) ++ assemblyDependencies(assemblyDependenciesScope)
 
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-annotations" % "2.6.5"
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.6.5"
-dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-annotations" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-core" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.5"
 
 //Trick to make Intellij/IDEA happy
 //We set all provided dependencies to none, so that they are included in the classpath of root module
@@ -114,7 +115,7 @@ lazy val root = (project in file(".")).
   settings(Defaults.itSettings: _*).
   settings(
     libraryDependencies ++= Seq(
-      "log4j" % "log4j" % "1.2.17",
+      "log4j" % "log4j" % "1.2.17" % "test",
       "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
     )
   ).
