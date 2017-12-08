@@ -65,10 +65,10 @@ package object runner extends Logging {
   @SuppressWarnings(
     Array(
       "org.wartremover.warts.ImplicitParameter"))
-  def numOfSparkExecutors(implicit sparkContext: SparkContext): Int = if (sparkContext.isLocal) 1 else {
+  def numOfSparkExecutors(implicit sparkContext: SparkContext): Int = /*if (sparkContext.isLocal) 1 else*/ {
     val sb = sparkContext.schedulerBackend
     sb match {
-      case _: LocalSchedulerBackend => 1
+      case b: LocalSchedulerBackend => b.totalCores
       case b: CoarseGrainedSchedulerBackend => b.getExecutorIds.length
     }
   }

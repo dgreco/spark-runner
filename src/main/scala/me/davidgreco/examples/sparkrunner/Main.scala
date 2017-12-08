@@ -21,12 +21,12 @@ import java.io.File
 import org.apache.spark.runner._
 import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
-
+import org.apache.spark.runner.utils._
 import scala.language.postfixOps
 
 object Main extends App {
 
-  val yarn = false
+  val yarn = true
 
   val conf: SparkConf = new SparkConf().setAppName("spark-runner-yarn")
 
@@ -34,7 +34,7 @@ object Main extends App {
 
   val uberJarLocation: String = {
     val location = getJar(Main.getClass)
-    if (new File(location).isDirectory) s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.0.jar" else location
+    if (new File(location).isDirectory) s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.1.jar" else location
   }
 
   if (master.isEmpty) {
@@ -59,7 +59,7 @@ object Main extends App {
     } else {
       val _ = conf.
         setAppName("spark-runner-local").
-        setMaster("local[4]")
+        setMaster("local[2]")
     }
   }
 
@@ -69,12 +69,15 @@ object Main extends App {
 
   implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
 
-  val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => Stream.continually(ec.address).foreach(item => {
-    Thread.sleep(100)
-    ec.send(item.getBytes)
-  })
+  val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
+    val port = getAvailablePort
+    Stream.continually((if (ec.id == 0) "master" else "slave", Thread.currentThread().getName, ec.id, ec.address, port)).foreach(item => {
+      Thread.sleep(1000)
+      ec.send(s"$item".getBytes)
+    })
+  }
 
-  streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(p => println((p._1, new String(p._2)))))
+  streamingExecuteOnNodes(func).foreachRDD(rdd => rdd.collect().foreach(p => { println((p._1, new String(p._2))); println() }))
 
   streamingContext.start()
 
