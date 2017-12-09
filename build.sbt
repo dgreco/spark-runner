@@ -1,11 +1,11 @@
 import sbt.Keys.dependencyOverrides
 import sbt._
 
-organization := "me.davidgreco.spark"
+organization := "org.apache.spark"
 
 name := "spark-runner"
 
-version in ThisBuild := "1.1"
+version in ThisBuild := "1.1.0"
 
 val assemblyName = "spark-runner-assembly"
 

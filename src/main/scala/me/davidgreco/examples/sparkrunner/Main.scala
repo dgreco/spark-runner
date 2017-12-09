@@ -19,14 +19,15 @@ package me.davidgreco.examples.sparkrunner
 import java.io.File
 
 import org.apache.spark.runner._
+import org.apache.spark.runner.utils._
 import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
 import org.apache.spark.{ SparkConf, SparkContext }
-import org.apache.spark.runner.utils._
+
 import scala.language.postfixOps
 
 object Main extends App {
 
-  val yarn = false
+  val yarn = true
 
   val conf: SparkConf = new SparkConf().setAppName("spark-runner-yarn")
 
@@ -67,12 +68,11 @@ object Main extends App {
 
   sparkContext.setLogLevel("ERROR")
 
-  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(100))
+  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(1000))
 
   val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
     val port = getAvailablePort
     Stream.continually((if (ec.id == 0) "master" else "slave", Thread.currentThread().getName, ec.zkQuorum, ec.id, ec.address, port)).foreach(item => {
-      Thread.sleep(1000)
       ec.send(s"$item".getBytes)
     })
   }

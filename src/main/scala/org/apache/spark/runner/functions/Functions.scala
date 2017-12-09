@@ -18,8 +18,8 @@ package org.apache.spark.runner.functions
 
 import java.net.InetAddress
 
-import org.apache.spark.runner.{ ExecutionContext, StreamingExecutionContext }
 import org.apache.spark.runner.utils._
+import org.apache.spark.runner.{ ExecutionContext, StreamingExecutionContext }
 
 @SuppressWarnings(Array("org.wartremover.warts.Equals"))
 object GetAddress extends (ExecutionContext => (String, String)) with Serializable {
