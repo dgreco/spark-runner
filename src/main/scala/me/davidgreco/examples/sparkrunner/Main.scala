@@ -35,7 +35,7 @@ object Main extends App {
 
   val uberJarLocation: String = {
     val location = getJar(Main.getClass)
-    if (new File(location).isDirectory) s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.1.jar" else location
+    if (new File(location).isDirectory) s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.1.0.jar" else location
   }
 
   if (master.isEmpty) {
@@ -55,8 +55,8 @@ object Main extends App {
         set("spark.shuffle.manager", "sort").
         set("spark.shuffle.service.enabled", "true").
         set("spark.executor.instances", Integer.toString(4)).
-        set("spark.executor.cores", Integer.toString(2)).
-        set("spark.executor.memory", "512m")
+        set("spark.executor.cores", Integer.toString(1)).
+        set("spark.executor.memory", "1024m")
     } else {
       val _ = conf.
         setAppName("spark-runner-local").
@@ -68,11 +68,14 @@ object Main extends App {
 
   sparkContext.setLogLevel("ERROR")
 
-  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(1000))
+  private val sparkBatchDuration = 1000L
+
+  implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(sparkBatchDuration))
 
   val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
     val port = getAvailablePort
     Stream.continually((if (ec.id == 0) "master" else "slave", Thread.currentThread().getName, ec.zkQuorum, ec.id, ec.address, port)).foreach(item => {
+      Thread.sleep(10000)
       ec.send(s"$item".getBytes)
     })
   }

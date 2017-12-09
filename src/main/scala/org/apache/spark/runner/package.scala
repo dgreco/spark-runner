@@ -163,8 +163,8 @@ package object runner extends Logging {
       "bootstrap.servers" -> brokers,
       "key.deserializer" -> classOf[ByteArrayDeserializer],
       "value.deserializer" -> classOf[ByteArrayDeserializer],
-      "auto.offset.reset" -> "earliest",
-      "enable.auto.commit" -> (true: lang.Boolean),
+      "auto.offset.reset" -> "latest",
+      "enable.auto.commit" -> (false: lang.Boolean),
       "group.id" -> "spark-runner-groupId")
     val stream = KafkaUtils.createDirectStream(streamingContext, PreferConsistent, Subscribe[String, Array[Byte]](topics, kafkaParams))
     log.info(s"Created the Kafka direct stream")
