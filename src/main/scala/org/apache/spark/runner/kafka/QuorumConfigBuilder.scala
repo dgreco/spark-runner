@@ -44,7 +44,6 @@ final case class InstanceSpec(
 final case class QuorumConfigBuilder(instanceSpecs: Array[InstanceSpec]) {
 
   def buildConfig(instanceIndex: Int): QuorumPeerConfig = {
-    //val isCluster = instanceSpecs.size > 1
     val spec = instanceSpecs(instanceIndex)
     val dir = constructTempDir("embedded-zk").getOrElse(throw new RuntimeException).getCanonicalPath
 
@@ -82,20 +81,20 @@ final case class QuorumConfigBuilder(instanceSpecs: Array[InstanceSpec]) {
   "org.wartremover.warts.Overloading"))
 object QuorumConfigBuilder {
   def apply(hosts: Array[(String, Int)]): QuorumConfigBuilder = new QuorumConfigBuilder(
-    hosts.zipWithIndex map {
+    hosts map {
       host =>
         {
-          val port = host._1._2
+          val port = host._2
           InstanceSpec(
             port = port,
-            electionPort = port + 1,
-            quorumPort = port + 2,
+            electionPort = port + 10,
+            quorumPort = port + 20,
             deleteDataDirectoryOnClose = true,
             serverId = host._2,
             tickTime = 1000,
             maxClientCnxns = 100,
             customProperties = Map.empty[String, AnyRef],
-            hostname = host._1._1)
+            hostname = host._1)
         }
     })
 }

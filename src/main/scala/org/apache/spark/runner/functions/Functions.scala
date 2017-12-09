@@ -19,6 +19,7 @@ package org.apache.spark.runner.functions
 import java.net.InetAddress
 
 import org.apache.spark.runner.{ ExecutionContext, StreamingExecutionContext }
+import org.apache.spark.runner.utils._
 
 @SuppressWarnings(Array("org.wartremover.warts.Equals"))
 object GetAddress extends (ExecutionContext => (String, String)) with Serializable {
@@ -26,6 +27,13 @@ object GetAddress extends (ExecutionContext => (String, String)) with Serializab
     val address: InetAddress = InetAddress.getLocalHost
     assert(ec.address == address.getHostAddress)
     (address.getHostAddress, address.getHostName)
+  }
+}
+
+object GetAddressAvailablePort extends (ExecutionContext => (String, Int)) with Serializable {
+  override def apply(ec: ExecutionContext): (String, Int) = {
+    val address: InetAddress = InetAddress.getLocalHost
+    (address.getHostAddress, getAvailablePort)
   }
 }
 

@@ -30,6 +30,7 @@ import org.apache.kafka.common.serialization.{ ByteArrayDeserializer, ByteArrayS
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.runner.functions.GetAddressAvailablePort
 import org.apache.spark.runner.kafka._
 import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
@@ -47,7 +48,7 @@ import scala.util.Random
 package object runner extends Logging {
 
   private val TICK_TIME = 1000
-  private val TIMEOUT = 1000
+  private val TIMEOUT = 10000
   private val SLEEP: Long = 1000
 
   //Simple function for adding a directory to the system classpath
@@ -66,7 +67,7 @@ package object runner extends Logging {
   @SuppressWarnings(
     Array(
       "org.wartremover.warts.ImplicitParameter"))
-  def numOfSparkExecutors(implicit sparkContext: SparkContext): Int = /*if (sparkContext.isLocal) 1 else*/ {
+  def numOfSparkExecutors(implicit sparkContext: SparkContext): Int = {
     val sb = sparkContext.schedulerBackend
     sb match {
       case b: LocalSchedulerBackend => b.totalCores
@@ -148,9 +149,9 @@ package object runner extends Logging {
 
     implicit val sparkContext: SparkContext = streamingContext.sparkContext
 
-    val nodes = executeOnNodes(ec => (ec.address, getAvailablePort))
+    val nodes = executeOnNodes(GetAddressAvailablePort)
 
-    val zkConnection: String = startZookeeperQuorum(nodes)
+    val zkConnection = startZookeeperQuorum(nodes)
 
     val (brokerIds: Set[Int], brokers: String) = startKafkaBrokers(numOfKafkaBrokers, nodes.length, zkConnection)
 
@@ -205,25 +206,22 @@ package object runner extends Logging {
     "org.wartremover.warts.Equals",
     "org.wartremover.warts.ImplicitParameter"))
   private def startZookeeperQuorum(nodes: Array[(String, Int)])(implicit sparkContext: SparkContext) = {
-    log.info("Starting Zookeeper on the executor with id 0")
-    val numNodes = nodes.size
-    val zkIds = {
-      if (numNodes >= 3) {
-        val zkIds = (0 until numNodes).toSet
-        Random.shuffle(zkIds).take(3)
-      } else
-        Set(0)
-    }
+    log.info("Starting Zookeeper Quorum")
+
+    val zkNodes = {
+      if (nodes.length >= 3)
+        Random.shuffle[(String, Int), Seq](nodes.toSeq).take(3)
+      else
+        Seq(nodes.apply(0))
+    }.toMap
+
+    val quorumConfigBuilder = QuorumConfigBuilder(zkNodes.map(node => (node._1, node._2)).toArray)
     val zkConnection = executeOnNodes(ec => {
-      if (zkIds.contains(ec.id)) {
-        val zkPort = getAvailablePort
-        val quorumConfigBuilder = {
-          QuorumConfigBuilder(nodes.map(node => (node._1, node._2)))
-        }
-        val embeddedZookeeper = if (zkIds.size == 1)
-          new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(ec.id))
+      if (zkNodes.contains(ec.address)) {
+        val embeddedZookeeper = if (zkNodes.size == 1)
+          new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(quorumConfigBuilder.instanceSpecs.indexWhere(_.hostname == ec.address)))
         else
-          new EmbeddedQuorumZookeeper(quorumConfigBuilder.buildConfig(ec.id))
+          new EmbeddedQuorumZookeeper(quorumConfigBuilder.buildConfig(quorumConfigBuilder.instanceSpecs.indexWhere(_.hostname == ec.address)))
         val resp = embeddedZookeeper.startup()
         if (resp.isSuccess)
           Some(embeddedZookeeper.getConnection)
@@ -232,7 +230,7 @@ package object runner extends Logging {
       } else
         None
     }).filter(_.isDefined).map(_.getOrElse("")).mkString(",")
-    log.info(s"Zookeeper started with connection = $zkConnection")
+    log.info(s"Zookeeper Quorum started with connection = $zkConnection")
     zkConnection
   }
 

@@ -44,7 +44,7 @@ class EmbeddedQuorumZookeeper(config: QuorumPeerConfig) extends EmbeddedZookeepe
 
   private var thread: Option[Thread] = None
 
-  def getConnection: String = quorumPeer.fold("")(quorumPeer => s"${quorumPeer.getQuorumAddress.getHostString}:${quorumPeer.getQuorumAddress.getPort}")
+  def getConnection: String = quorumPeer.fold("")(quorumPeer => s"${quorumPeer.getQuorumAddress.getHostString}:${quorumPeer.getClientPort}")
 
   def startup(): Try[Unit] = Try {
     val cnxnFactory = ServerCnxnFactory.createFactory
@@ -59,7 +59,6 @@ class EmbeddedQuorumZookeeper(config: QuorumPeerConfig) extends EmbeddedZookeepe
       config.getTickTime,
       config.getInitLimit,
       config.getSyncLimit,
-      config.getQuorumListenOnAllIPs,
       cnxnFactory,
       config.getQuorumVerifier))
 
@@ -70,7 +69,6 @@ class EmbeddedQuorumZookeeper(config: QuorumPeerConfig) extends EmbeddedZookeepe
         quorumPeer.setMaxSessionTimeout(config.getMaxSessionTimeout)
         quorumPeer.setZKDatabase(new ZKDatabase(quorumPeer.getTxnFactory))
         quorumPeer.setLearnerType(config.getPeerType)
-        quorumPeer.setSyncEnabled(config.getSyncEnabled)
         quorumPeer.initialize()
         quorumPeer.start()
     }

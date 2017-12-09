@@ -34,6 +34,8 @@ val kafkaVersion = "0.11.0-kafka-3.0.0"
 
 val hadoopVersion = "2.6.0-cdh5.13.0"
 
+val zookeeperVersion = "3.4.5-cdh5.13.0"
+
 val scalaTestVersion = "3.0.1"
 
 resolvers ++= Seq(
@@ -53,6 +55,7 @@ val sparkExcludes =
 
 val assemblyDependencies = (scope: String) => Seq(
   sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion % scope),
+  "org.apache.zookeeper" % "zookeeper" % zookeeperVersion % scope,
   "org.apache.kafka" % "kafka-clients" % kafkaVersion % scope,
   "org.apache.kafka" %% "kafka" % kafkaVersion % scope
 )
@@ -82,6 +85,7 @@ libraryDependencies ++= Seq(
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope)
 ) ++ assemblyDependencies(assemblyDependenciesScope)
 
+dependencyOverrides in ThisBuild += "org.apache.zookeeper" % "zookeeper" % zookeeperVersion
 dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-annotations" % "2.6.5"
 dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-core" % "2.6.5"
 dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.5"
