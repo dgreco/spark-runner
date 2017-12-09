@@ -85,6 +85,11 @@ libraryDependencies ++= Seq(
 dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-annotations" % "2.6.5"
 dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-core" % "2.6.5"
 dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % "2.6.5"
+dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.6.5"
 
 //Trick to make Intellij/IDEA happy
 //We set all provided dependencies to none, so that they are included in the classpath of root module
@@ -104,7 +109,7 @@ lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file(
 run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in(Compile, run), runner in(Compile, run))
 
 //http://stackoverflow.com/questions/27824281/sparksql-missingrequirementerror-when-registering-table
-fork := true
+fork := false
 
 parallelExecution in Test := false
 

@@ -46,7 +46,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
   override def beforeAll(): Unit = {
     val conf = new SparkConf().
       setAppName("spark-runner-test").
-      setMaster("local[16]")
+      setMaster("local")
     sparkSession = SparkSession.builder().config(conf).getOrCreate()
     ()
   }

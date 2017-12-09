@@ -26,7 +26,7 @@ import scala.language.postfixOps
 
 object Main extends App {
 
-  val yarn = true
+  val yarn = false
 
   val conf: SparkConf = new SparkConf().setAppName("spark-runner-yarn")
 
@@ -54,12 +54,12 @@ object Main extends App {
         set("spark.shuffle.manager", "sort").
         set("spark.shuffle.service.enabled", "true").
         set("spark.executor.instances", Integer.toString(4)).
-        set("spark.executor.cores", Integer.toString(1)).
+        set("spark.executor.cores", Integer.toString(2)).
         set("spark.executor.memory", "512m")
     } else {
       val _ = conf.
         setAppName("spark-runner-local").
-        setMaster("local[2]")
+        setMaster("local[4]")
     }
   }
 
@@ -71,7 +71,7 @@ object Main extends App {
 
   val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
     val port = getAvailablePort
-    Stream.continually((if (ec.id == 0) "master" else "slave", Thread.currentThread().getName, ec.id, ec.address, port)).foreach(item => {
+    Stream.continually((if (ec.id == 0) "master" else "slave", Thread.currentThread().getName, ec.zkQuorum, ec.id, ec.address, port)).foreach(item => {
       Thread.sleep(1000)
       ec.send(s"$item".getBytes)
     })
