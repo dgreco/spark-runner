@@ -81,7 +81,7 @@ final case class QuorumConfigBuilder(instanceSpecs: Array[InstanceSpec]) {
 @SuppressWarnings(Array(
   "org.wartremover.warts.Overloading"))
 object QuorumConfigBuilder {
-  def apply(hosts: List[(String, Int)]): QuorumConfigBuilder = new QuorumConfigBuilder(
+  def apply(hosts: Array[(String, Int)]): QuorumConfigBuilder = new QuorumConfigBuilder(
     hosts.zipWithIndex map {
       host =>
         {
@@ -97,5 +97,5 @@ object QuorumConfigBuilder {
             customProperties = Map.empty[String, AnyRef],
             hostname = host._1._1)
         }
-    } toArray)
+    })
 }

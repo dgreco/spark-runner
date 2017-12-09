@@ -30,7 +30,7 @@ import org.apache.kafka.common.serialization.{ ByteArrayDeserializer, ByteArrayS
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, SingleEmbeddedZookeeper, QuorumConfigBuilder, makeProducer }
+import org.apache.spark.runner.kafka._
 import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
@@ -148,11 +148,11 @@ package object runner extends Logging {
 
     implicit val sparkContext: SparkContext = streamingContext.sparkContext
 
-    val numNodes = numOfSparkExecutors
+    val nodes = executeOnNodes(ec => (ec.address, getAvailablePort))
 
-    val zkConnection: String = startZookeeperQuorum
+    val zkConnection: String = startZookeeperQuorum(nodes)
 
-    val (brokerIds: Set[Int], brokers: String) = startKafkaBrokers(numOfKafkaBrokers, numNodes, zkConnection)
+    val (brokerIds: Set[Int], brokers: String) = startKafkaBrokers(numOfKafkaBrokers, nodes.length, zkConnection)
 
     createTopic(TOPIC, zkConnection, brokerIds)
 
@@ -204,13 +204,26 @@ package object runner extends Logging {
   @SuppressWarnings(Array(
     "org.wartremover.warts.Equals",
     "org.wartremover.warts.ImplicitParameter"))
-  private def startZookeeperQuorum(implicit sparkContext: SparkContext) = {
+  private def startZookeeperQuorum(nodes: Array[(String, Int)])(implicit sparkContext: SparkContext) = {
     log.info("Starting Zookeeper on the executor with id 0")
+    val numNodes = nodes.size
+    val zkIds = {
+      if (numNodes >= 3) {
+        val zkIds = (0 until numNodes).toSet
+        Random.shuffle(zkIds).take(3)
+      } else
+        Set(0)
+    }
     val zkConnection = executeOnNodes(ec => {
-      if (ec.id == 0) {
+      if (zkIds.contains(ec.id)) {
         val zkPort = getAvailablePort
-        val quorumConfigBuilder = QuorumConfigBuilder(List((ec.address, zkPort)))
-        val embeddedZookeeper = new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(0))
+        val quorumConfigBuilder = {
+          QuorumConfigBuilder(nodes.map(node => (node._1, node._2)))
+        }
+        val embeddedZookeeper = if (zkIds.size == 1)
+          new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(ec.id))
+        else
+          new EmbeddedQuorumZookeeper(quorumConfigBuilder.buildConfig(ec.id))
         val resp = embeddedZookeeper.startup()
         if (resp.isSuccess)
           Some(embeddedZookeeper.getConnection)
@@ -218,7 +231,7 @@ package object runner extends Logging {
           None
       } else
         None
-    }).filter(_.isDefined).head.getOrElse("")
+    }).filter(_.isDefined).map(_.getOrElse("")).mkString(",")
     log.info(s"Zookeeper started with connection = $zkConnection")
     zkConnection
   }

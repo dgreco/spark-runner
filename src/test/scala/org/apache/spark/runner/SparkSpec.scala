@@ -59,7 +59,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
       val numZkServers = 3
 
-      val hosts = (0 until numZkServers) map { _ => ("localhost", getAvailablePort) } toList
+      val hosts = (0 until numZkServers) map { _ => ("localhost", getAvailablePort) } toArray
 
       val quorumConfigBuilder = QuorumConfigBuilder(hosts)
 
@@ -105,7 +105,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
       val numZkServers = 1
 
-      val hosts = (0 until numZkServers) map { _ => ("localhost", getAvailablePort) } toList
+      val hosts = (0 until numZkServers) map { _ => ("localhost", getAvailablePort) } toArray
 
       val quorumConfigBuilder = QuorumConfigBuilder(hosts)
 
