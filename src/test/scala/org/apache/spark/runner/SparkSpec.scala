@@ -23,7 +23,7 @@ import java.util.function.Consumer
 
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.runner.functions.GetAddress
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper }
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedQuorumZookeeper, SingleEmbeddedZookeeper, QuorumConfigBuilder }
 import org.apache.spark.runner.utils._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.api.java.JavaStreamingContext
@@ -32,7 +32,10 @@ import org.apache.spark.{ SparkConf, SparkContext }
 import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
 import org.scalatest.{ BeforeAndAfterAll, MustMatchers, WordSpec }
 
+import scala.language.postfixOps
+
 @SuppressWarnings(Array(
+  "org.wartremover.warts.TryPartial",
   "org.wartremover.warts.JavaSerializable",
   "org.wartremover.warts.Equals",
   "org.wartremover.warts.Var",
@@ -51,15 +54,34 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
     ()
   }
 
-  "The EmbeddedZookeeper" must {
+  "The EmbeddedZookeeper Quorum" must {
     "be created and run correctly" in {
+
+      val numZkServers = 3
+
+      val hosts = (0 until numZkServers) map { _ => ("localhost", getAvailablePort) } toList
+
+      val quorumConfigBuilder = QuorumConfigBuilder(hosts)
+
+      val configs = (0 until numZkServers) map quorumConfigBuilder.buildConfig
+
+      val zks = configs map {
+        config =>
+          val zkServer = new EmbeddedQuorumZookeeper(config)
+          val result = zkServer.startup()
+          if (result.isSuccess)
+            Some(zkServer)
+          else
+            None
+      }
+
+      zks.filter(_.isDefined).size must be(numZkServers)
+
+      val zkConnection = zks.map(_.fold("")(_.getConnection)).mkString(",")
+
       val const = 1000
-      val port = getAvailablePort
-      val zk = new EmbeddedZookeeper(port, const)
-      zk.startup().isSuccess must be(true)
-      import java.util.concurrent.CountDownLatch
       val connSignal = new CountDownLatch(1)
-      val zkCli = new ZooKeeper(zk.getConnection, const, new Watcher {
+      val zkCli = new ZooKeeper(zkConnection, const, new Watcher {
         override def process(event: WatchedEvent): Unit = {
           import org.apache.zookeeper.Watcher.Event.KeeperState
           if (event.getState eq KeeperState.SyncConnected) connSignal.countDown()
@@ -72,18 +94,39 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
       zkCli.exists("/test", false).getAversion must be(0)
       zkCli.delete("/test", 0)
       zkCli.close()
-      zk.shutdown().isFailure must be(false)
+
+      zks.foreach(_.foreach(zk => zk.stop().isSuccess must be(true)))
+
     }
   }
 
   "The EmbeddedKafka" must {
     "be created and run correctly" in {
-      val const = 1000
-      val zkPort = getAvailablePort
-      val zk = new EmbeddedZookeeper(zkPort, const)
-      zk.startup().isSuccess must be(true)
+
+      val numZkServers = 1
+
+      val hosts = (0 until numZkServers) map { _ => ("localhost", getAvailablePort) } toList
+
+      val quorumConfigBuilder = QuorumConfigBuilder(hosts)
+
+      val configs = (0 until numZkServers) map quorumConfigBuilder.buildConfig
+
+      val zks = configs map {
+        config =>
+          val zkServer = new SingleEmbeddedZookeeper(config)
+          val result = zkServer.startup()
+          if (result.isSuccess)
+            Some(zkServer)
+          else
+            None
+      }
+
+      zks.filter(_.isDefined).size must be(numZkServers)
+
+      val zkConnection = zks.map(_.fold("")(_.getConnection)).mkString(",")
+
       val kafkaPort = getAvailablePort
-      val kafkaServer = new EmbeddedKafka(0, zk.getConnection, kafkaPort)
+      val kafkaServer = new EmbeddedKafka(0, zkConnection, kafkaPort)
       kafkaServer.startup().isSuccess must be(true)
       var connected = true
       connected = try {
@@ -94,7 +137,7 @@ class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
       }
       connected must be(true)
       kafkaServer.shutdown().isFailure must be(false)
-      zk.shutdown().isFailure must be(false)
+      zks.foreach(_.foreach(zk => zk.stop().isSuccess must be(true)))
     }
   }
 

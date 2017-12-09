@@ -30,7 +30,7 @@ import org.apache.kafka.common.serialization.{ ByteArrayDeserializer, ByteArrayS
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedZookeeper, makeProducer }
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, SingleEmbeddedZookeeper, QuorumConfigBuilder, makeProducer }
 import org.apache.spark.runner.utils._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
@@ -209,7 +209,8 @@ package object runner extends Logging {
     val zkConnection = executeOnNodes(ec => {
       if (ec.id == 0) {
         val zkPort = getAvailablePort
-        val embeddedZookeeper = new EmbeddedZookeeper(zkPort, TICK_TIME)
+        val quorumConfigBuilder = QuorumConfigBuilder(List((ec.address, zkPort)))
+        val embeddedZookeeper = new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(0))
         val resp = embeddedZookeeper.startup()
         if (resp.isSuccess)
           Some(embeddedZookeeper.getConnection)
