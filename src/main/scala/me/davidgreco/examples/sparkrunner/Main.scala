@@ -27,7 +27,7 @@ import scala.language.postfixOps
 
 object Main extends App {
 
-  val yarn = true
+  val yarn = false
 
   val conf: SparkConf = new SparkConf().setAppName("spark-runner-yarn")
 

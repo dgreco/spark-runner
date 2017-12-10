@@ -43,7 +43,7 @@ import org.apache.spark.streaming.kafka010.KafkaUtils
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 
 import scala.reflect.ClassTag
-import scala.util.Random
+import scala.util.{ Failure, Random, Success => TrySuccess }
 
 package object runner extends Logging {
 
@@ -216,19 +216,27 @@ package object runner extends Logging {
     }.toMap
 
     val quorumConfigBuilder = QuorumConfigBuilder(zkNodes.map(node => (node._1, node._2)).toArray)
+
     val zkConnection = executeOnNodes(ec => {
-      if (zkNodes.contains(ec.address)) {
-        val embeddedZookeeper = if (zkNodes.size == 1)
-          new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(quorumConfigBuilder.instanceSpecs.indexWhere(_.hostname == ec.address)))
-        else
-          new EmbeddedQuorumZookeeper(quorumConfigBuilder.buildConfig(quorumConfigBuilder.instanceSpecs.indexWhere(_.hostname == ec.address)))
-        val resp = embeddedZookeeper.startup()
-        if (resp.isSuccess)
-          Some(embeddedZookeeper.getConnection)
+
+      val embeddedZookeeper =
+        if (zkNodes.size == 1 && ec.id == 0)
+          Some(new SingleEmbeddedZookeeper(quorumConfigBuilder.buildConfig(quorumConfigBuilder.instanceSpecs.indexWhere(_.hostname == ec.address))))
+        else if (zkNodes.contains(ec.address) && zkNodes.size > 1)
+          Some(new EmbeddedQuorumZookeeper(quorumConfigBuilder.buildConfig(quorumConfigBuilder.instanceSpecs.indexWhere(_.hostname == ec.address))))
         else
           None
-      } else
-        None
+
+      val resp = embeddedZookeeper match {
+        case Some(ezk) => ezk.startup()
+        case None => Failure[Unit](new RuntimeException)
+      }
+
+      resp match {
+        case TrySuccess(_) => embeddedZookeeper.map(_.getConnection)
+        case Failure(_) => None
+      }
+
     }).filter(_.isDefined).map(_.getOrElse("")).mkString(",")
     log.info(s"Zookeeper Quorum started with connection = $zkConnection")
     zkConnection
@@ -238,6 +246,7 @@ package object runner extends Logging {
     "org.wartremover.warts.Throw",
     "org.wartremover.warts.ImplicitParameter"))
   private def startKafkaBrokers(numOfKafkaBrokers: Option[Int], numNodes: Int, zkConnection: String)(implicit sparkContext: SparkContext) = {
+
     val brokerIds = {
       val brokerIds = (0 until numNodes).toSet
       numOfKafkaBrokers.fold(brokerIds)(nb => if (nb >= numNodes || nb < 1)
