@@ -16,21 +16,21 @@
 
 package org.apache.spark.runner
 
-import java.net.{InetAddress, Socket}
+import java.net.{ InetAddress, Socket }
 import java.util.concurrent.CountDownLatch
 import java.util.function
 import java.util.function.Consumer
 
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.runner.functions.GetAddress
-import org.apache.spark.runner.kafka.{EmbeddedKafka, EmbeddedQuorumZookeeper, QuorumConfigBuilder, SingleEmbeddedZookeeper}
+import org.apache.spark.runner.kafka.{ EmbeddedKafka, EmbeddedQuorumZookeeper, QuorumConfigBuilder, SingleEmbeddedZookeeper }
 import org.apache.spark.runner.utils._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.api.java.JavaStreamingContext
-import org.apache.spark.streaming.{Milliseconds, StreamingContext}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.zookeeper.{WatchedEvent, Watcher, ZooKeeper}
-import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
+import org.apache.spark.streaming.{ Milliseconds, StreamingContext }
+import org.apache.spark.{ SparkConf, SparkContext }
+import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
+import org.scalatest.{ BeforeAndAfterAll, MustMatchers, WordSpec }
 
 import scala.language.postfixOps
 

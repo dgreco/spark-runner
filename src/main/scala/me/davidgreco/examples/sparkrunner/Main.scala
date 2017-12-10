@@ -75,7 +75,6 @@ object Main extends App {
   val func: (StreamingExecutionContext) => Unit = (ec: StreamingExecutionContext) => {
     val port = getAvailablePort
     Stream.continually((if (ec.id == 0) "master" else "slave", Thread.currentThread().getName, ec.zkQuorum, ec.id, ec.address, port)).foreach(item => {
-      Thread.sleep(10000)
       ec.send(s"$item".getBytes)
     })
   }

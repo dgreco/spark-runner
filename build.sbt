@@ -30,8 +30,6 @@ wartremoverErrors ++= Warts.all
 
 val sparkVersion = "2.2.0.cloudera1"
 
-val kafkaVersion = "0.11.0-kafka-3.0.0"
-
 val hadoopVersion = "2.6.0-cdh5.13.0"
 
 val zookeeperVersion = "3.4.5-cdh5.13.0"
@@ -55,9 +53,7 @@ val sparkExcludes =
 
 val assemblyDependencies = (scope: String) => Seq(
   sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion % scope),
-  "org.apache.zookeeper" % "zookeeper" % zookeeperVersion % scope,
-  "org.apache.kafka" % "kafka-clients" % kafkaVersion % scope,
-  "org.apache.kafka" %% "kafka" % kafkaVersion % scope
+  "org.apache.zookeeper" % "zookeeper" % zookeeperVersion % scope
 )
 
 val hadoopClientExcludes =
