@@ -37,7 +37,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
     hadoop_conf_dir.fold(Predef.assert(false, "please set the HADOOP_CONF_DIR env variable"))(addPath(_))
 
-    val uberJarLocation = s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.0.jar"
+    val uberJarLocation = s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.1.0.jar"
 
     val conf = new SparkConf().
       setMaster("yarn-client").
@@ -51,7 +51,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
       set("spark.shuffle.service.enabled", "true").
       set("spark.executor.instances", Integer.toString(4)).
       set("spark.executor.cores", Integer.toString(1)).
-      set("spark.executor.memory", "512m")
+      set("spark.executor.memory", "1024m")
     sparkSession = SparkSession.builder().config(conf).getOrCreate()
   }
 
@@ -92,7 +92,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
       streamingContext.start()
 
-      Thread.sleep(1000)
+      Thread.sleep(4000)
 
       counter must be(numItems * numNodes)
 

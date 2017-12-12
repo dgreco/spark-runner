@@ -93,7 +93,9 @@ dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" %% "jackson-m
 
 //Trick to make Intellij/IDEA happy
 //We set all provided dependencies to none, so that they are included in the classpath of root module
-lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file("."))).settings(
+lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file("."))).
+  configs(IntegrationTest).
+  settings(
   // we set all provided dependencies to none, so that they are included in the classpath of mainRunner
   libraryDependencies := (libraryDependencies in RootProject(file("."))).value.map {
     module =>
@@ -108,8 +110,7 @@ lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file(
 //http://stackoverflow.com/questions/18838944/how-to-add-provided-dependencies-back-to-run-test-tasks-classpath/21803413#21803413
 run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in(Compile, run), runner in(Compile, run))
 
-//http://stackoverflow.com/questions/27824281/sparksql-missingrequirementerror-when-registering-table
-fork := false
+fork := true
 
 parallelExecution in Test := false
 
@@ -117,11 +118,11 @@ isSnapshot := true
 
 lazy val root = (project in file(".")).
   configs(IntegrationTest).
-  settings(Defaults.itSettings: _*).
   settings(
+    Defaults.itSettings,
     libraryDependencies ++= Seq(
       "log4j" % "log4j" % "1.2.17" % "test",
-      "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
+      "org.scalatest" %% "scalatest" % scalaTestVersion % "it,test"
     )
   ).
   settings(
