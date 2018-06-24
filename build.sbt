@@ -28,11 +28,11 @@ scalacOptions ++= Seq(
 
 wartremoverErrors ++= Warts.all
 
-val sparkVersion = "2.2.0.cloudera1"
+val sparkVersion = "2.3.0.cloudera2"
 
-val hadoopVersion = "2.6.0-cdh5.13.0"
+val hadoopVersion = "2.6.0-cdh5.15.0"
 
-val zookeeperVersion = "3.4.5-cdh5.13.0"
+val zookeeperVersion = "3.4.5-cdh5.15.0"
 
 val scalaTestVersion = "3.0.1"
 
@@ -53,7 +53,8 @@ val sparkExcludes =
 
 val assemblyDependencies = (scope: String) => Seq(
   sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion % scope),
-  "org.apache.zookeeper" % "zookeeper" % zookeeperVersion % scope
+  "org.apache.zookeeper" % "zookeeper" % zookeeperVersion % scope,
+  "org.apache.kafka" %% "kafka" % "0.10.0-kafka-2.1.0" % scope
 )
 
 val hadoopClientExcludes =
@@ -114,7 +115,7 @@ fork := true
 
 parallelExecution in Test := false
 
-isSnapshot := true
+isSnapshot := false
 
 lazy val root = (project in file(".")).
   configs(IntegrationTest).
@@ -122,7 +123,7 @@ lazy val root = (project in file(".")).
     Defaults.itSettings,
     libraryDependencies ++= Seq(
       "log4j" % "log4j" % "1.2.17" % "test",
-      "org.scalatest" %% "scalatest" % scalaTestVersion % "it,test"
+      "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
     )
   ).
   settings(
@@ -170,3 +171,13 @@ mappings in Universal := {
 }
 
 scriptClasspath ++= Seq(s"$assemblyName-${version.value}.jar")
+
+publishTo := {
+  val nexus = "http://localhost:8081/repository/"
+  if (isSnapshot.value)
+    Some("snapshots" at nexus + "maven-snapshots/")
+  else
+    Some("releases" at nexus + "maven-releases/")
+}
+
+credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
