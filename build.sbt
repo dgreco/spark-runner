@@ -97,16 +97,15 @@ dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" %% "jackson-m
 lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file("."))).
   configs(IntegrationTest).
   settings(
-  // we set all provided dependencies to none, so that they are included in the classpath of mainRunner
-  libraryDependencies := (libraryDependencies in RootProject(file("."))).value.map {
-    module =>
-      if (module.configurations.equals(Some("provided"))) {
-        module.copy(configurations = None)
-      } else {
-        module
-      }
-  }
-)
+    // we set all provided dependencies to none, so that they are included in the classpath of mainRunner
+    libraryDependencies := (libraryDependencies in RootProject(file("."))).value.map {
+      module =>
+        if (module.configurations.equals(Some("provided")))
+          module.withConfigurations(None)
+        else
+          module
+    }
+  )
 
 //http://stackoverflow.com/questions/18838944/how-to-add-provided-dependencies-back-to-run-test-tasks-classpath/21803413#21803413
 run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in(Compile, run), runner in(Compile, run))
