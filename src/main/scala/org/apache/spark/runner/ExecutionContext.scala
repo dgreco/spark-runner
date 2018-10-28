@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 David Greco
+ * Copyright 2018 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,6 @@
 
 package org.apache.spark.runner
 
-import java.util.concurrent.Future
-
-import org.apache.kafka.clients.producer.{ KafkaProducer, ProducerRecord, RecordMetadata }
-
 sealed trait ExecutionContext {
   def id: Int
 
@@ -27,12 +23,3 @@ sealed trait ExecutionContext {
 }
 
 final case class SimpleExecutionContext(id: Int, address: String) extends ExecutionContext
-
-final case class StreamingExecutionContext(
-  id: Int,
-  address: String,
-  zkQuorum: String,
-  topic: String,
-  producer: KafkaProducer[String, Array[Byte]]) extends ExecutionContext {
-  def send(value: Array[Byte]): Future[RecordMetadata] = producer.send(new ProducerRecord[String, Array[Byte]](topic, address, value))
-}

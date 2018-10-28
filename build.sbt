@@ -1,4 +1,19 @@
-import sbt.Keys.dependencyOverrides
+/*
+ * Copyright 2018 David Greco
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import sbt._
 
 organization := "org.apache.spark"
@@ -26,13 +41,15 @@ scalacOptions ++= Seq(
   "-Xfuture"
 )
 
+javacOptions ++= Seq(
+  "-Xlint:unchecked"
+)
+
 wartremoverErrors ++= Warts.all
 
-val sparkVersion = "2.3.0.cloudera2"
+val sparkVersion = "2.2.0-cdh6.0.0"
 
-val hadoopVersion = "2.6.0-cdh5.15.0"
-
-val zookeeperVersion = "3.4.5-cdh5.15.0"
+val hadoopVersion = "3.0.0-cdh6.0.1"
 
 val scalaTestVersion = "3.0.1"
 
@@ -49,12 +66,11 @@ val sparkExcludes =
     exclude("org.apache.hadoop", "hadoop-yarn-api").
     exclude("org.apache.hadoop", "hadoop-yarn-common").
     exclude("org.apache.hadoop", "hadoop-yarn-server-common").
-    exclude("org.apache.hadoop", "hadoop-yarn-server-web-proxy")
+    exclude("org.apache.hadoop", "hadoop-yarn-server-web-proxy").
+    exclude("javax.validation","validation-api").
+    exclude("org.glassfish.hk2","hk2-locator")
 
 val assemblyDependencies = (scope: String) => Seq(
-  sparkExcludes("org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion % scope),
-  "org.apache.zookeeper" % "zookeeper" % zookeeperVersion % scope,
-  "org.apache.kafka" %% "kafka" % "0.10.0-kafka-2.1.0" % scope
 )
 
 val hadoopClientExcludes =
@@ -72,8 +88,6 @@ libraryDependencies ++= Seq(
   sparkExcludes("org.apache.spark" %% "spark-core" % sparkVersion % hadoopDependenciesScope),
   sparkExcludes("org.apache.spark" %% "spark-sql" % sparkVersion % hadoopDependenciesScope),
   sparkExcludes("org.apache.spark" %% "spark-yarn" % sparkVersion % hadoopDependenciesScope),
-  sparkExcludes("org.apache.spark" %% "spark-mllib" % sparkVersion % hadoopDependenciesScope),
-  sparkExcludes("org.apache.spark" %% "spark-streaming" % sparkVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-api" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-client" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-common" % hadoopVersion % hadoopDependenciesScope),
@@ -81,16 +95,6 @@ libraryDependencies ++= Seq(
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-server-web-proxy" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope)
 ) ++ assemblyDependencies(assemblyDependenciesScope)
-
-dependencyOverrides in ThisBuild += "org.apache.zookeeper" % "zookeeper" % zookeeperVersion
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-annotations" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-core" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % "2.6.5"
-dependencyOverrides in ThisBuild += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.6.5"
 
 //Trick to make Intellij/IDEA happy
 //We set all provided dependencies to none, so that they are included in the classpath of root module
@@ -122,12 +126,12 @@ lazy val root = (project in file(".")).
     Defaults.itSettings,
     libraryDependencies ++= Seq(
       "log4j" % "log4j" % "1.2.17" % "test",
-      "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
+      "org.scalatest" %% "scalatest" % scalaTestVersion % "test, it"
     )
   ).
   settings(
     organizationName := "David Greco",
-    startYear := Some(2017),
+    startYear := Some(2018),
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt"))
   ).
   settings(
@@ -136,7 +140,6 @@ lazy val root = (project in file(".")).
     }
   ).
   enablePlugins(AutomateHeaderPlugin).
-  enablePlugins(JavaAppPackaging).
   disablePlugins(AssemblyPlugin)
 
 lazy val projectAssembly = (project in file("assembly")).
@@ -158,25 +161,3 @@ lazy val projectAssembly = (project in file("assembly")).
         if (!isALibrary) ExclusionRule(organization = "org.apache.hadoop") else ExclusionRule())
     )
   })
-
-mappings in Universal := {
-  val universalMappings = (mappings in Universal).value
-  val filtered = universalMappings filter {
-    case (f, n) =>
-      !n.endsWith(s"${organization.value}.${name.value}-${version.value}.jar")
-  }
-  val fatJar: File = new File(s"${System.getProperty("user.dir")}/assembly/target/scala-2.10/$assemblyName-${version.value}.jar")
-  filtered :+ (fatJar -> ("lib/" + fatJar.getName))
-}
-
-scriptClasspath ++= Seq(s"$assemblyName-${version.value}.jar")
-
-publishTo := {
-  val nexus = "http://localhost:8081/repository/"
-  if (isSnapshot.value)
-    Some("snapshots" at nexus + "maven-snapshots/")
-  else
-    Some("releases" at nexus + "maven-releases/")
-}
-
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")

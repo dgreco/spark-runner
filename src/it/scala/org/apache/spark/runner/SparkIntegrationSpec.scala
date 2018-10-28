@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 CGnal S.p.A.
+ * Copyright 2018 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,8 @@
 
 package org.apache.spark.runner
 
-import java.security.InvalidParameterException
-
-import org.apache.spark.runner.functions.{GetAddress, SendNInts}
+import org.apache.spark.runner.functions.GetAddress
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 
@@ -41,6 +38,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
     val conf = new SparkConf().
       setMaster("yarn-client").
+      set("spark.driver.bindAddress", "192.168.10.3").
       setAppName("spark-cdh5-template-yarn").
       setJars(List(uberJarLocation)).
       set("spark.yarn.jars", "local:/opt/cloudera/parcels/SPARK2/lib/spark2/jars/*").
@@ -62,42 +60,6 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
       val nodes = getNodes
 
       executeOnNodes[(String, String)](GetAddress).map(_._1).toSet must be(getNodes.toSet)
-    }
-  }
-
-  "Spark" must {
-    "run a function and streaming the result correctly" in {
-      val batchIntervalInMillis = 100L
-
-      val numItems = 100
-
-      implicit val sparkContext: SparkContext = sparkSession.sparkContext
-
-      implicit val streamingContext: StreamingContext = new StreamingContext(sparkContext, Milliseconds(batchIntervalInMillis))
-
-      val numNodes = numOfSparkExecutors
-
-      @SuppressWarnings(Array("org.wartremover.warts.Var"))
-      var counter = 0
-
-      an [InvalidParameterException] should be thrownBy {
-        streamingExecuteOnNodes(SendNInts(numItems), Some(5)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
-      }
-
-      an [InvalidParameterException] should be thrownBy {
-        streamingExecuteOnNodes(SendNInts(numItems), Some(0)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
-      }
-
-      streamingExecuteOnNodes(SendNInts(numItems), Some(2)).foreachRDD(rdd => rdd.collect().foreach(_ => counter += 1))
-
-      streamingContext.start()
-
-      Thread.sleep(4000)
-
-      counter must be(numItems * numNodes)
-
-      streamingContext.stop(false)
-
     }
   }
 

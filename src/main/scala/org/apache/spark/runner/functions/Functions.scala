@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 David Greco
+ * Copyright 2018 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package org.apache.spark.runner.functions
 
 import java.net.InetAddress
 
+import org.apache.spark.runner.ExecutionContext
 import org.apache.spark.runner.utils._
-import org.apache.spark.runner.{ ExecutionContext, StreamingExecutionContext }
 
 @SuppressWarnings(Array("org.wartremover.warts.Equals"))
 object GetAddress extends (ExecutionContext => (String, String)) with Serializable {
@@ -34,12 +34,5 @@ object GetAddressAvailablePort extends (ExecutionContext => (String, Int)) with 
   override def apply(ec: ExecutionContext): (String, Int) = {
     val address: InetAddress = InetAddress.getLocalHost
     (address.getHostAddress, getAvailablePort)
-  }
-}
-
-final case class SendNInts(numInts: Int) extends (StreamingExecutionContext => Unit) with Serializable {
-  override def apply(ec: StreamingExecutionContext): Unit = {
-    for (i <- 1 to numInts)
-      ec.send(i.toString.getBytes)
   }
 }
