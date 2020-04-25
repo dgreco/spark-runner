@@ -20,11 +20,11 @@ organization := "org.apache.spark"
 
 name := "spark-runner"
 
-version in ThisBuild := "1.1.0"
+version in ThisBuild := "2.0.0"
 
 val assemblyName = "spark-runner-assembly"
 
-scalaVersion in ThisBuild := "2.11.12"
+scalaVersion in ThisBuild := "2.12.11"
 
 scalastyleFailOnError := true
 
@@ -47,15 +47,11 @@ javacOptions ++= Seq(
 
 wartremoverErrors ++= Warts.all
 
-val sparkVersion = "2.2.0-cdh6.0.0"
+val sparkVersion = "3.0.0-preview2"
 
-val hadoopVersion = "3.0.0-cdh6.0.1"
+val hadoopVersion = "3.2.1"
 
-val scalaTestVersion = "3.0.1"
-
-resolvers ++= Seq(
-  "cloudera" at "https://repository.cloudera.com/artifactory/cloudera-repos/"
-)
+val scalaTestVersion = "3.1.1"
 
 val isALibrary = true //this is a library project
 

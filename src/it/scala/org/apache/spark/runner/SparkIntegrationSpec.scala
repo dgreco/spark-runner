@@ -19,10 +19,12 @@ package org.apache.spark.runner
 import org.apache.spark.runner.functions.GetAddress
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
+class SparkIntegrationSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
   @SuppressWarnings(Array("org.wartremover.warts.Var", "org.wartremover.warts.Null"))
   var sparkSession: SparkSession = _
@@ -57,7 +59,7 @@ class SparkIntegrationSpec extends WordSpec with MustMatchers with BeforeAndAfte
     "run a function correctly" in {
       implicit val sparkContext: SparkContext = sparkSession.sparkContext
 
-      val nodes = getNodes
+      //val nodes = getNodes
 
       executeOnNodes[(String, String)](GetAddress).map(_._1).toSet must be(getNodes.toSet)
     }

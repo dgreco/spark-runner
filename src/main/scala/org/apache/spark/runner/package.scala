@@ -29,10 +29,6 @@ import scala.reflect.ClassTag
 
 package object runner extends Logging {
 
-  private val TICK_TIME = 1000
-  private val TIMEOUT = 10000
-  private val SLEEP: Long = 1000
-
   //Simple function for adding a directory to the system classpath
   def addPath(dir: String): Unit = {
     val method = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL])
@@ -93,7 +89,7 @@ package object runner extends Logging {
 
     val rdd: RDD[Int] = sparkContext.parallelize[Int](1 to numNodes, numNodes)
 
-    rdd.mapPartitionsWithIndex[T]((id, _) => new Iterator[T] {
+    rdd.mapPartitionsWithIndex[T]((id: Int, _: Iterator[Int]) => new Iterator[T] {
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var firstTime = true
 

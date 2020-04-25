@@ -22,8 +22,6 @@ import org.apache.spark.runner._
 import org.apache.spark.runner.functions.GetAddress
 import org.apache.spark.{ SparkConf, SparkContext }
 
-import scala.language.postfixOps
-
 object Main extends App {
 
   val yarn = true

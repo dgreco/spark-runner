@@ -23,9 +23,9 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.runner.functions.GetAddress
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{ SparkConf, SparkContext }
-import org.scalatest.{ BeforeAndAfterAll, MustMatchers, WordSpec }
-
-import scala.language.postfixOps
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 @SuppressWarnings(Array(
   "org.wartremover.warts.TryPartial",
@@ -34,7 +34,7 @@ import scala.language.postfixOps
   "org.wartremover.warts.Var",
   "org.wartremover.warts.Null",
   "org.wartremover.warts.NonUnitStatements"))
-class SparkSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
+class SparkSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
   var sparkSession: SparkSession = _
 
