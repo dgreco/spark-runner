@@ -49,20 +49,12 @@ val hadoopVersion = "3.1.1"
 
 val scalaTestVersion = "3.2.10"
 
-val isALibrary = false //this is a library project
+val isALibrary = true //this is a library project
 
 val sparkExcludes =
   (moduleId: ModuleID) => moduleId.
     exclude("org.apache.hadoop", "hadoop-client-api").
-    exclude("org.apache.hadoop", "hadoop-client-runtime").
-    exclude("org.apache.hadoop", "hadoop-client").
-    exclude("org.apache.hadoop", "hadoop-yarn-client").
-    exclude("org.apache.hadoop", "hadoop-yarn-api").
-    exclude("org.apache.hadoop", "hadoop-yarn-common").
-    exclude("org.apache.hadoop", "hadoop-yarn-server-common").
-    exclude("org.apache.hadoop", "hadoop-yarn-server-web-proxy").
-    exclude("javax.validation","validation-api").
-    exclude("org.glassfish.hk2","hk2-locator")
+    exclude("org.apache.hadoop", "hadoop-client-runtime")
 
 val assemblyDependencies = (_: String) => Seq(
 )
@@ -82,13 +74,8 @@ libraryDependencies ++= Seq(
   sparkExcludes("org.apache.spark" %% "spark-core" % sparkVersion % hadoopDependenciesScope),
   sparkExcludes("org.apache.spark" %% "spark-sql" % sparkVersion % hadoopDependenciesScope),
   sparkExcludes("org.apache.spark" %% "spark-yarn" % sparkVersion % hadoopDependenciesScope),
-  hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-api" % hadoopVersion % hadoopDependenciesScope),
-  hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-client" % hadoopVersion % hadoopDependenciesScope),
-  hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-common" % hadoopVersion % hadoopDependenciesScope),
-  hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-applications-distributedshell" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-server-web-proxy" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-client-api" % hadoopVersion % hadoopDependenciesScope),
-  hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion % hadoopDependenciesScope)
 
 ) ++ assemblyDependencies(assemblyDependenciesScope)
@@ -111,11 +98,11 @@ lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file(
 //http://stackoverflow.com/questions/18838944/how-to-add-provided-dependencies-back-to-run-test-tasks-classpath/21803413#21803413
 Compile / run := Defaults.runTask(Compile / fullClasspath, Compile / run / mainClass, Compile / run / runner)
 
-fork := true
+IntegrationTest / fork := true
 
-Test / parallelExecution := false
+IntegrationTest / parallelExecution := false
 
-isSnapshot := false
+IntegrationTest / javaOptions ++= Seq("--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED")
 
 lazy val root = (project in file(".")).
   configs(IntegrationTest).
