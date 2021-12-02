@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 David Greco
+ * Copyright 2021 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ package object utils {
     }
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+  @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.StringPlusAny"))
   def constructTempDir(dirPrefix: String): Try[File] = Try {
     val rndinterval = 10000000
     val file = new File(System.getProperty("java.io.tmpdir"), s"$dirPrefix${Random.nextInt(rndinterval)}")

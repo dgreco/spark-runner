@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 David Greco
+ * Copyright 2021 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,11 @@ organization := "org.apache.spark"
 
 name := "spark-runner"
 
-version in ThisBuild := "2.0.0"
+ThisBuild / version := "2.0.0"
 
 val assemblyName = "spark-runner-assembly"
 
-scalaVersion in ThisBuild := "2.12.11"
-
-scalastyleFailOnError := true
+ThisBuild / scalaVersion := "2.13.5"
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -35,10 +33,8 @@ scalacOptions ++= Seq(
   "-unchecked",
   "-Xfatal-warnings",
   "-Xlint",
-  "-Yno-adapted-args",
   "-Ywarn-numeric-widen",
-  "-Ywarn-value-discard",
-  "-Xfuture"
+  "-Ywarn-value-discard"
 )
 
 javacOptions ++= Seq(
@@ -47,16 +43,18 @@ javacOptions ++= Seq(
 
 wartremoverErrors ++= Warts.all
 
-val sparkVersion = "3.0.0-preview2"
+val sparkVersion = "3.2.0"
 
-val hadoopVersion = "3.2.1"
+val hadoopVersion = "3.1.1"
 
-val scalaTestVersion = "3.1.1"
+val scalaTestVersion = "3.2.10"
 
-val isALibrary = true //this is a library project
+val isALibrary = false //this is a library project
 
 val sparkExcludes =
   (moduleId: ModuleID) => moduleId.
+    exclude("org.apache.hadoop", "hadoop-client-api").
+    exclude("org.apache.hadoop", "hadoop-client-runtime").
     exclude("org.apache.hadoop", "hadoop-client").
     exclude("org.apache.hadoop", "hadoop-yarn-client").
     exclude("org.apache.hadoop", "hadoop-yarn-api").
@@ -66,7 +64,7 @@ val sparkExcludes =
     exclude("javax.validation","validation-api").
     exclude("org.glassfish.hk2","hk2-locator")
 
-val assemblyDependencies = (scope: String) => Seq(
+val assemblyDependencies = (_: String) => Seq(
 )
 
 val hadoopClientExcludes =
@@ -89,7 +87,10 @@ libraryDependencies ++= Seq(
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-common" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-applications-distributedshell" % hadoopVersion % hadoopDependenciesScope),
   hadoopClientExcludes("org.apache.hadoop" % "hadoop-yarn-server-web-proxy" % hadoopVersion % hadoopDependenciesScope),
-  hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope)
+  hadoopClientExcludes("org.apache.hadoop" % "hadoop-client-api" % hadoopVersion % hadoopDependenciesScope),
+  hadoopClientExcludes("org.apache.hadoop" % "hadoop-client" % hadoopVersion % hadoopDependenciesScope),
+  hadoopClientExcludes("org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion % hadoopDependenciesScope)
+
 ) ++ assemblyDependencies(assemblyDependenciesScope)
 
 //Trick to make Intellij/IDEA happy
@@ -98,9 +99,9 @@ lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file(
   configs(IntegrationTest).
   settings(
     // we set all provided dependencies to none, so that they are included in the classpath of mainRunner
-    libraryDependencies := (libraryDependencies in RootProject(file("."))).value.map {
+    libraryDependencies := (RootProject(file(".")) / libraryDependencies).value.map {
       module =>
-        if (module.configurations.equals(Some("provided")))
+        if (module.configurations.contains("provided"))
           module.withConfigurations(None)
         else
           module
@@ -108,11 +109,11 @@ lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file(
   )
 
 //http://stackoverflow.com/questions/18838944/how-to-add-provided-dependencies-back-to-run-test-tasks-classpath/21803413#21803413
-run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in(Compile, run), runner in(Compile, run))
+Compile / run := Defaults.runTask(Compile / fullClasspath, Compile / run / mainClass, Compile / run / runner)
 
 fork := true
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 isSnapshot := false
 
@@ -127,11 +128,11 @@ lazy val root = (project in file(".")).
   ).
   settings(
     organizationName := "David Greco",
-    startYear := Some(2018),
+    startYear := Some(2021),
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt"))
   ).
   settings(
-    mappings in(Compile, packageBin) ~= {
+    Compile / packageBin / mappings ~= {
       _.filter(!_._1.getName.endsWith("log4j.properties"))
     }
   ).
@@ -140,20 +141,20 @@ lazy val root = (project in file(".")).
 
 lazy val projectAssembly = (project in file("assembly")).
   settings(
-    assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
-    assemblyMergeStrategy in assembly := {
+    //assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
+    assembly / assemblyMergeStrategy := {
       case "org/apache/spark/unused/UnusedStubClass.class" => MergeStrategy.last
       case PathList("log4j.properties") => MergeStrategy.discard
       case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    assemblyJarName in assembly := s"$assemblyName-${version.value}.jar",
+    assembly / assemblyJarName := s"$assemblyName-${version.value}.jar",
     libraryDependencies ++= assemblyDependencies("compile")
   ) dependsOn root settings (
   projectDependencies := {
     Seq(
-      (projectID in root).value.excludeAll(ExclusionRule(organization = "org.apache.spark"),
+      (root / projectID).value.excludeAll(ExclusionRule(organization = "org.apache.spark"),
         if (!isALibrary) ExclusionRule(organization = "org.apache.hadoop") else ExclusionRule())
     )
   })

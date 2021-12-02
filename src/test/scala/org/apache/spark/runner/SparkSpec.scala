@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 David Greco
+ * Copyright 2021 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @SuppressWarnings(Array(
   "org.wartremover.warts.TryPartial",
+  "org.wartremover.warts.Serializable",
   "org.wartremover.warts.JavaSerializable",
   "org.wartremover.warts.Equals",
   "org.wartremover.warts.Var",

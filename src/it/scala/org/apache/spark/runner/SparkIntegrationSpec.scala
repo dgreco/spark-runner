@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 David Greco
+ * Copyright 2021 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,30 +36,22 @@ class SparkIntegrationSpec extends AnyWordSpec with Matchers with BeforeAndAfter
 
     hadoop_conf_dir.fold(Predef.assert(false, "please set the HADOOP_CONF_DIR env variable"))(addPath(_))
 
-    val uberJarLocation = s"${System.getProperty("user.dir")}/assembly/target/scala-2.11/spark-runner-assembly-1.1.0.jar"
+    val uberJarLocation = s"${System.getProperty("user.dir")}/assembly/target/scala-2.13/spark-runner-assembly-2.0.0.jar"
 
     val conf = new SparkConf().
-      setMaster("yarn-client").
-      set("spark.driver.bindAddress", "192.168.10.3").
-      setAppName("spark-cdh5-template-yarn").
+      setMaster("yarn").
+      setAppName("spark-runner-yarn").
       setJars(List(uberJarLocation)).
-      set("spark.yarn.jars", "local:/opt/cloudera/parcels/SPARK2/lib/spark2/jars/*").
-      set("spark.serializer", "org.apache.spark.serializer.KryoSerializer").
-      set("spark.io.compression.codec", "lzf").
-      set("spark.speculation", "true").
-      set("spark.shuffle.manager", "sort").
-      set("spark.shuffle.service.enabled", "true").
+      set("spark.yarn.jars", "local:/opt/spark-3.2.0/jars/*").
       set("spark.executor.instances", Integer.toString(4)).
       set("spark.executor.cores", Integer.toString(1)).
-      set("spark.executor.memory", "1024m")
+      set("spark.executor.memory", "512m")
     sparkSession = SparkSession.builder().config(conf).getOrCreate()
   }
 
   "Spark" must {
     "run a function correctly" in {
       implicit val sparkContext: SparkContext = sparkSession.sparkContext
-
-      //val nodes = getNodes
 
       executeOnNodes[(String, String)](GetAddress).map(_._1).toSet must be(getNodes.toSet)
     }

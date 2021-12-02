@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 David Greco
+ * Copyright 2021 David Greco
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,32 @@
 
 package org.apache.spark
 
-import java.io.File
-import java.net.{ InetAddress, URL, URLClassLoader }
-
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
 
+import java.io.File
+import java.lang.reflect.Method
+import java.net.{InetAddress, URL}
 import scala.reflect.ClassTag
 
 package object runner extends Logging {
 
   //Simple function for adding a directory to the system classpath
   def addPath(dir: String): Unit = {
-    val method = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL])
-    method.setAccessible(true)
-    val _ = method.invoke(ClassLoader.getSystemClassLoader, new File(dir).toURI.toURL)
+    val classLoader: ClassLoader = ClassLoader.getSystemClassLoader
+    try {
+      val method: Method = classLoader.getClass.getDeclaredMethod("addURL", classOf[URL])
+      method.setAccessible(true)
+      val _ = method.invoke(classLoader, new File(dir).toURI.toURL)
+    } catch {
+      case _: NoSuchMethodException =>
+        val method: Method = classLoader.getClass.getDeclaredMethod("appendToClassPathForInstrumentation", classOf[String])
+        method.setAccessible(true)
+        val _ = method.invoke(classLoader, dir)
+    }
   }
 
   //given a class it returns the jar (in the classpath) containing that class
@@ -44,12 +52,16 @@ package object runner extends Logging {
 
   @SuppressWarnings(
     Array(
-      "org.wartremover.warts.ImplicitParameter"))
+      "org.wartremover.warts.ImplicitParameter",
+      "org.wartremover.warts.Throw"
+    )
+  )
   def numOfSparkExecutors(implicit sparkContext: SparkContext): Int = {
     val sb = sparkContext.schedulerBackend
     sb match {
       case b: LocalSchedulerBackend => b.totalCores
-      case b: CoarseGrainedSchedulerBackend => b.getExecutorIds.length
+      case b: CoarseGrainedSchedulerBackend => b.getExecutorIds().length
+      case _ => throw new Exception("It shouldn't be here")
     }
   }
 
