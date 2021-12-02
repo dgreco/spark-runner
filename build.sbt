@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 
-import sbt._
-
-organization := "org.apache.spark"
-
 name := "spark-runner"
 
+ThisBuild / organization := "org.apache.spark"
 ThisBuild / version := "2.0.0"
-
-val assemblyName = "spark-runner-assembly"
-
 ThisBuild / scalaVersion := "2.13.5"
-
-scalacOptions ++= Seq(
+ThisBuild / wartremoverErrors ++= Warts.all
+ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
   "-encoding", "UTF-8", // yes, this is 2 args
   "-feature",
@@ -36,12 +30,19 @@ scalacOptions ++= Seq(
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard"
 )
-
-javacOptions ++= Seq(
+ThisBuild / javacOptions ++= Seq(
   "-Xlint:unchecked"
 )
 
-wartremoverErrors ++= Warts.all
+//http://stackoverflow.com/questions/18838944/how-to-add-provided-dependencies-back-to-run-test-tasks-classpath/21803413#21803413
+Compile / run := Defaults.runTask(Compile / fullClasspath, Compile / run / mainClass, Compile / run / runner)
+
+Compile / run := Defaults.runTask(Compile / fullClasspath, Compile / run / mainClass, Compile / run / runner)
+IntegrationTest / fork := true
+IntegrationTest / parallelExecution := false
+IntegrationTest / javaOptions ++= Seq("--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED")
+
+val assemblyName = "spark-runner-assembly"
 
 val sparkVersion = "3.2.0"
 
@@ -94,15 +95,6 @@ lazy val mainRunner = project.in(file("mainRunner")).dependsOn(RootProject(file(
           module
     }
   )
-
-//http://stackoverflow.com/questions/18838944/how-to-add-provided-dependencies-back-to-run-test-tasks-classpath/21803413#21803413
-Compile / run := Defaults.runTask(Compile / fullClasspath, Compile / run / mainClass, Compile / run / runner)
-
-IntegrationTest / fork := true
-
-IntegrationTest / parallelExecution := false
-
-IntegrationTest / javaOptions ++= Seq("--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED")
 
 lazy val root = (project in file(".")).
   configs(IntegrationTest).
