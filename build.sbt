@@ -44,11 +44,11 @@ IntegrationTest / javaOptions ++= Seq("--add-opens", "java.base/jdk.internal.loa
 
 val assemblyName = "spark-runner-assembly"
 
-val sparkVersion = "3.2.0"
+val sparkVersion = "3.3.0"
 
-val hadoopVersion = "3.1.1"
+val hadoopVersion = "3.3.3"
 
-val scalaTestVersion = "3.2.10"
+val scalaTestVersion = "3.2.12"
 
 val isALibrary = true //this is a library project
 
